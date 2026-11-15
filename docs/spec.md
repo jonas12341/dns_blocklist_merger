@@ -55,6 +55,7 @@ Zielgerät: FRITZ!Box 7530 AX mit FRITZ!OS 8.50.
 - Die Startseite zeigt den Status der Ausgabedatei und alle Blocklisten nach Priorität.
 - Domains & Ausnahmen und die Einstellungen öffnen als eigene Seiten.
 - Fehlermeldungen stehen nur direkt an der betroffenen Blockliste. Am Seitenanfang gibt es keinen zusätzlichen Fehlerhinweis.
+- Design in den Settings wählbar: „Wie System“ (folgt der Android-Einstellung hell/dunkel) oder „Dunkel“. Standard: „Wie System“.
 
 ## Beispiel-Blocklisten
 
@@ -91,6 +92,7 @@ Zielgerät: FRITZ!Box 7530 AX mit FRITZ!OS 8.50.
 | 13 | Zugriff FRITZ!Box-Speicher | Freigegebenes Verzeichnis, Zugang mit Benutzer und Passwort; FRITZ!Box 7530 AX, FRITZ!OS 8.50 |
 
 | 14 | UI-Entwurf | B „Startseite mit Status“; Fehlermeldung an der Blockliste reicht, kein Hinweis am Seitenanfang |
+| 15 | Design | Dunkel oder Systemeinstellung |
 
 ## Offene Fragen
 

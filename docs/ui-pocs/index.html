@@ -22,6 +22,11 @@
   --ok: #6fd3a0; --ok-soft: #173326; --warn: #f0c060; --warn-soft: #3a2d10; --err: #ff8f86; --err-soft: #3d1b19;
   --frame: #05070a; color-scheme: dark; }
 
+.screen.force-dark {
+  --surface: #171c25; --surface-2: #1e2430; --line: #2c3442;
+  --fg: #e6eaf1; --muted: #9aa5b5; --accent: #8fb0ff; --accent-soft: #233357; --on-accent: #0d1630;
+  --ok: #6fd3a0; --ok-soft: #173326; --warn: #f0c060; --warn-soft: #3a2d10; --err: #ff8f86; --err-soft: #3d1b19;
+  color: var(--fg); color-scheme: dark; }
 * { box-sizing: border-box; }
 body { background: var(--bg); color: var(--fg); font-family: var(--font-ui); font-size: 14px; line-height: 1.45;
   padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 20px 40px; }
@@ -136,7 +141,7 @@ const S = {
       error: 'HTTP 503: Server nicht erreichbar (15.11.2026, 06:00). Der Stand vom 14.11.2026 wird weiter genutzt.' },
   ],
   exceptions: ['analytics.google.com', 'fritz.box'],
-  settings: { maxKB: 4096, a: 10, b: 1, subdomains: false, autoTime: '06:00', path: 'smb://fritz.box/FRITZ.NAS/dnsfilter/blocklist.txt', user: 'jonas', pass: '••••••••' },
+  settings: { theme: 'system', maxKB: 4096, a: 10, b: 1, subdomains: false, autoTime: '06:00', path: 'smb://fritz.box/FRITZ.NAS/dnsfilter/blocklist.txt', user: 'jonas', pass: '••••••••' },
   lastWrite: '2026-11-15T06:02', nextId: 4,
 };
 const brands = ['mediahub','newsflow','shopzone','gamebox','videoplus','socialnet','weatherly','fintrack','travelgo','musicbox','appstat','cloudly','datapix','quickad','sparkly','orbitads','luma','nexo','vexa','pixelpark','adnova','clickly','trackr','beaconia','metricio','promohub','bannerly','telemio','syncro','loggly'];
@@ -244,7 +249,11 @@ function exceptionsBlock() {
 }
 function settingsBlock() {
   const s = S.settings;
-  return `<div class="card"><h4>Ausgabe</h4>
+  return `<div class="card"><h4>Darstellung</h4>
+    <div class="btns" role="group" aria-label="Design">${[['system', 'Wie System'], ['dark', 'Dunkel']].map(([v, l]) =>
+      `<button type="button" class="btn small ${s.theme === v ? 'primary' : ''}" data-act="theme" data-v="${v}" aria-pressed="${s.theme === v}">${l}</button>`).join('')}</div>
+    <div class="muted">„Wie System“ folgt der Android-Einstellung hell/dunkel.</div></div>
+  <div class="card"><h4>Ausgabe</h4>
     <label class="field">Maximale Größe: <b class="tabular" id="maxkb-l">${n(s.maxKB)} KB</b> (FRITZ!Box: max. 4096 KB)
       <input type="range" id="set-maxKB" min="5" max="4096" step="1" value="${s.maxKB}"></label>
     <div class="row"><label class="field grow">Gewicht Priorität (a)<input type="number" id="set-a" min="0" max="100" value="${s.a}"></label>
@@ -315,6 +324,7 @@ function renderC(r) {
 const screen = document.getElementById('screen');
 function render() {
   const r = compute();
+  screen.classList.toggle('force-dark', S.settings.theme === 'dark');
   screen.innerHTML = { A: renderA, B: renderB, C: renderC }[S.concept](r) + (S.toast ? `<div class="toast" role="status">${esc(S.toast)}</div>` : '') ;
   document.querySelectorAll('.switch button').forEach(b => b.setAttribute('aria-pressed', b.dataset.c === S.concept));
   const nt = NOTES[S.concept];
@@ -338,6 +348,7 @@ screen.addEventListener('click', e => {
     case 'write': S.lastWrite = '2026-11-15T09:41'; return toast('Geschrieben nach ' + S.settings.path);
     case 'save': return toast('Hier öffnet sich der Android-Dateidialog.');
     case 'test': return toast('Verbindung zu fritz.box ok, Ordner beschreibbar.');
+    case 'theme': S.settings.theme = t.dataset.v; break;
     case 'open': S.sheet = t.dataset.s; break;
     case 'close': S.sheet = null; break;
   }
