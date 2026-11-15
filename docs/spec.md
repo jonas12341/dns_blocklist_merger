@@ -57,6 +57,22 @@ Zielgerät: FRITZ!Box 7530 AX mit FRITZ!OS 8.50.
 - Fehlermeldungen stehen nur direkt an der betroffenen Blockliste. Am Seitenanfang gibt es keinen zusätzlichen Fehlerhinweis.
 - Design in den Settings wählbar: „Wie System“ (folgt der Android-Einstellung hell/dunkel) oder „Dunkel“. Standard: „Wie System“.
 
+## Technik
+
+Von Claude festgelegt (Jonas: „Technik entscheidest du“, 2026-11-15).
+
+| Bereich | Wahl |
+|---|---|
+| Sprache, UI | Kotlin, Jetpack Compose, Material 3 (hell/dunkel nach A8) |
+| Mindestversion | `minSdk 36` (Android 16) |
+| Datenhaltung | Room (Listen, Domains, Ausnahmen, Status), DataStore (Settings) |
+| Download | OkHttp mit ETag/If-Modified-Since, damit unveränderte Listen nicht neu geladen werden |
+| Hintergrund | WorkManager, täglicher Lauf zur eingestellten Uhrzeit, nur mit Netzwerk |
+| FRITZ!Box-Freigabe | SMB2/3 über die Bibliothek smbj |
+| Passwort | Verschlüsselt mit einem AES-Schlüssel aus dem Android Keystore |
+| Dateidialog | Storage Access Framework (`ACTION_CREATE_DOCUMENT`) |
+| Tests | JUnit für Parser und Auswahl-Logik; Gerätetests macht Jonas |
+
 ## Beispiel-Blocklisten
 
 | URL | Format |
@@ -65,7 +81,7 @@ Zielgerät: FRITZ!Box 7530 AX mit FRITZ!OS 8.50.
 | https://raw.githubusercontent.com/hagezi/dns-blocklists/main/adblock/pro.txt | Adblock-Syntax (`\|\|domain^`) |
 | https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts | Hosts-Datei (`0.0.0.0 domain`) |
 
-## Abgeleitete Anforderungen (Vorschlag, noch nicht bestätigt)
+## Abgeleitete Anforderungen
 
 - Der Parser erkennt mindestens drei Formate: Adblock-Syntax, Hosts-Datei und reine Domain-Liste. Kommentare (`#`, `!`) und leere Zeilen werden ignoriert.
 - Domains werden normalisiert: Kleinschreibung, ohne Schema, Pfad, Port und abschließenden Punkt. Hosts-Einträge wie `localhost` oder `0.0.0.0` werden verworfen.
