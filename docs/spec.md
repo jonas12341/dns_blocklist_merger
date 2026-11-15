@@ -28,7 +28,7 @@ Zielgerät: FRITZ!Box 7530 AX mit FRITZ!OS 8.50.
 ### A4 Settings
 - Maximale Größe der Ausgabedatei in KB. Standard und Obergrenze: 4096 KB (4 MB). Grund: Der DNS-Filter der FRITZ!Box hat max. 8 MB internen Speicher frei, zum Austausch darf die Datei höchstens 4 MB groß sein.
 - Rang-Formel (siehe A5) mit einstellbaren Parametern `a` und `b`.
-- Schalter „Subdomains weglassen“ (siehe A6). Standard: aus.
+- Schalter „Subdomains weglassen“ (siehe A6). Standard: an.
 - Zugang zum FRITZ!Box-Speicher: Pfad zum freigegebenen Verzeichnis, Benutzer und Passwort (siehe A7).
 
 ### A5 Auswahl der Einträge für die Ausgabedatei
@@ -93,6 +93,9 @@ Zielgerät: FRITZ!Box 7530 AX mit FRITZ!OS 8.50.
 
 | 14 | UI-Entwurf | B „Startseite mit Status“; Fehlermeldung an der Blockliste reicht, kein Hinweis am Seitenanfang |
 | 15 | Design | Dunkel oder Systemeinstellung |
+| 16 | Subdomains weglassen | Standardmäßig an |
+| 17 | Test auf Gerät | Jonas testet selbst auf seinem Handy |
+| 18 | Tickets | GitHub Issues im Repo |
 
 ## Offene Fragen
 
