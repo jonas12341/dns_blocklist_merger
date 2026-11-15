@@ -268,7 +268,7 @@ function errorBanner() {
 // ---------- concepts ----------
 const NOTES = {
   A: { tag: 'Entwurf A', title: 'Reiter unten', points: ['Vier feste Bereiche: Listen, Domains, Ausgabe, Einstellungen.', 'Typisches Android-Muster, jeder Bereich ist einen Tipp entfernt.', 'Gut, wenn du oft gezielt etwas suchst, z. B. eine Domain ausschließen.', 'Nachteil: Der Gesamtstatus ist auf mehrere Reiter verteilt.'] },
-  B: { tag: 'Entwurf B', title: 'Startseite mit Status', points: ['Eine Startseite: Fehler, Belegung der Ausgabedatei und alle Listen auf einen Blick.', 'Domains und Ausnahmen öffnen als eigene Seite, Einstellungen über das Zahnrad.', 'Gut, wenn die App meist nur kurz geprüft wird ("läuft alles?").', 'Nachteil: Die Domain-Suche ist einen Schritt tiefer.'] },
+  B: { tag: 'Entwurf B · gewählt', title: 'Startseite mit Status', points: ['Eine Startseite: Belegung der Ausgabedatei und alle Listen auf einen Blick. Fehler stehen nur direkt an der betroffenen Blockliste.', 'Domains und Ausnahmen öffnen als eigene Seite, Einstellungen über das Zahnrad.', 'Gut, wenn die App meist nur kurz geprüft wird ("läuft alles?").', 'Nachteil: Die Domain-Suche ist einen Schritt tiefer.'] },
   C: { tag: 'Entwurf C', title: 'Ablauf in vier Schritten', points: ['Die App zeigt den Weg der Daten: Quellen, Zusammenführen, Filtern, Ausgabe.', 'Jeder Schritt zeigt seine Zahlen, z. B. wie viele Domains in wie vielen Listen stehen.', 'Gut, um die Auswahl-Logik nachzuvollziehen und Einstellungen zu verstehen.', 'Nachteil: Mehr Scrollen, für den Alltag etwas umständlicher.'] },
 };
 function renderA(r) {
@@ -291,7 +291,7 @@ function renderB(r) {
       <div class="scroll">${S.sheet === 'domains' ? domainsBlock(r, true) : settingsBlock()}</div></div>`;
   }
   return `<div class="appbar"><h3>Blocklist Merger</h3><button type="button" class="btn small" data-act="refresh">Aktualisieren</button><button type="button" class="btn small" data-act="open" data-s="settings" aria-label="Einstellungen">⚙</button></div>
-    <div class="scroll">${errorBanner()}${outputBlock(r)}
+    <div class="scroll">${outputBlock(r)}
       <button type="button" class="card" data-act="open" data-s="domains" style="text-align:left;cursor:pointer;font:inherit;color:inherit"><div class="row"><div class="grow"><h4>Domains & Ausnahmen</h4><div class="muted">${n(r.items.length)} Domains · ${S.exceptions.length} dauerhafte Ausnahmen</div></div><span>›</span></div></button>
       <div class="sec-title">Blocklisten nach Priorität</div>${listsBlock(true)}</div>${sheet}`;
 }

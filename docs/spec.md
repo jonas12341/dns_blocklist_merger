@@ -50,6 +50,12 @@ Zielgerät: FRITZ!Box 7530 AX mit FRITZ!OS 8.50.
 - Pfad, Benutzer und Passwort sind in den Settings einstellbar.
 - Zusätzlich kann die Datei manuell über den Android-Dateidialog gespeichert werden.
 
+### A8 Oberfläche
+- Grundlage ist Entwurf B „Startseite mit Status“ aus `docs/ui-pocs/index.html`.
+- Die Startseite zeigt den Status der Ausgabedatei und alle Blocklisten nach Priorität.
+- Domains & Ausnahmen und die Einstellungen öffnen als eigene Seiten.
+- Fehlermeldungen stehen nur direkt an der betroffenen Blockliste. Am Seitenanfang gibt es keinen zusätzlichen Fehlerhinweis.
+
 ## Beispiel-Blocklisten
 
 | URL | Format |
@@ -83,6 +89,8 @@ Zielgerät: FRITZ!Box 7530 AX mit FRITZ!OS 8.50.
 | 11 | Subdomain-Verhalten | Über die Settings steuern |
 | 12 | Zeilenformat | Adblock-Syntax |
 | 13 | Zugriff FRITZ!Box-Speicher | Freigegebenes Verzeichnis, Zugang mit Benutzer und Passwort; FRITZ!Box 7530 AX, FRITZ!OS 8.50 |
+
+| 14 | UI-Entwurf | B „Startseite mit Status“; Fehlermeldung an der Blockliste reicht, kein Hinweis am Seitenanfang |
 
 ## Offene Fragen
 
