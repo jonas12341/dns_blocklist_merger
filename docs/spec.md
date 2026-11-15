@@ -4,34 +4,45 @@ Stand: 2026-11-15
 
 ## Ziel
 
-Android-App (ab Android 16). Sie lädt DNS-Blocklisten aus dem Internet, führt sie zusammen und erzeugt eine einzige Ausgabedatei für die FRITZ!Box.
+Android-App (ab Android 16). Sie lädt DNS-Blocklisten aus dem Internet, führt sie zusammen und erzeugt eine einzige Ausgabedatei für den DNS-Filter der FRITZ!Box.
 
-## Anforderungen (Vorgabe Jonas)
+## Anforderungen
 
 ### A1 Blocklisten verwalten
 - Die Oberfläche erlaubt die Eingabe von URLs zu Blocklisten.
-- Die Blocklisten lassen sich priorisieren.
+- Jede Blockliste hat eine Priorität. Mehrere Blocklisten dürfen dieselbe Priorität haben.
 
-### A2 Status der Blocklisten
+### A2 Aktualisierung und Status
+- Die Blocklisten werden automatisch einmal täglich im Hintergrund aktualisiert.
+- Eine manuelle Aktualisierung ist jederzeit möglich.
 - Pro Blockliste werden Datum und Uhrzeit der letzten Aktualisierung angezeigt.
 - Bei fehlerhaftem Zugriff wird eine Fehlermeldung angezeigt.
 
-### A3 Domain-Liste und Ausschlüsse
-- Die App zeigt eine Liste der aktuellen zu blockenden DNS-Einträge (Domains).
+### A3 Domain-Liste und Ausnahmen
+- Die App zeigt eine Liste der aktuellen zu blockenden Domains.
 - Einzelne Domains lassen sich von der Verarbeitung ausschließen.
+- Domains lassen sich manuell als dauerhafte Ausnahme anlegen. Ausnahmen werden dauerhaft gespeichert und gelten bei jeder weiteren Erzeugung.
 
 ### A4 Settings
-- Eine maximale Größe der Ausgabedatei ist einstellbar.
+- Maximale Größe der Ausgabedatei in KB. Standard und Obergrenze: 4096 KB (4 MB). Grund: Der DNS-Filter der FRITZ!Box hat max. 8 MB internen Speicher frei, zum Austausch darf die Datei höchstens 4 MB groß sein.
+- Rang-Formel (siehe A5) mit einstellbaren Parametern.
+- Zielpfad auf dem FRITZ!Box-Speicher (siehe A7).
 
 ### A5 Auswahl der Einträge für die Ausgabedatei
-- Die Auswahl berücksichtigt die Priorität der Blocklisten und die Häufigkeit, mit der eine Domain über alle Blocklisten hinweg vorkommt.
+- Aus der Priorität der Blocklisten und der Häufigkeit einer Domain über alle Blocklisten hinweg wird ein Rang berechnet.
 - Einträge aus Blocklisten der höchsten Priorität werden immer geschrieben.
-- Ist die maximale Größe danach noch nicht erreicht, werden weitere Einträge nach Priorität + Häufigkeit aufgenommen, bis die maximale Größe erreicht ist.
-- Ausgeschlossene Domains (A3) werden nie geschrieben.
+- Ist die maximale Größe danach noch nicht erreicht, werden weitere Einträge nach Rang (bester zuerst) aufgenommen, bis die maximale Größe erreicht ist.
+- Ausgeschlossene Domains und Ausnahmen (A3) werden nie geschrieben.
+- Die Rang-Formel ist über die Settings einstellbar (Standardformel: siehe offene Frage 1).
 
 ### A6 Format der Ausgabedatei
 - Jeder Eintrag kommt genau einmal vor.
-- Die Einträge sind alphabetisch absteigend sortiert.
+- Die Einträge sind aufsteigend sortiert: 0–9 vor A–Z.
+- Subdomains entfallen, wenn ihre übergeordnete Domain bereits in der Datei steht (z. B. entfällt `ads.example.com`, wenn `example.com` geschrieben wird). Das gilt nur, wenn der FRITZ!Box-DNS-Filter Subdomains eines Eintrags mitblockt (siehe offene Frage 2).
+
+### A7 Bereitstellung der Datei
+- Die App schreibt die Datei direkt auf den Speicher der FRITZ!Box. Der Zielpfad ist in den Settings einstellbar.
+- Zusätzlich kann die Datei manuell über den Android-Dateidialog gespeichert werden.
 
 ## Beispiel-Blocklisten
 
@@ -47,13 +58,23 @@ Android-App (ab Android 16). Sie lädt DNS-Blocklisten aus dem Internet, führt 
 - Domains werden normalisiert: Kleinschreibung, ohne Schema, Pfad, Port und abschließenden Punkt. Hosts-Einträge wie `localhost` oder `0.0.0.0` werden verworfen.
 - Eine fehlgeschlagene Blockliste blockiert die Erzeugung nicht. Die App nutzt dann den zuletzt erfolgreich geladenen Stand dieser Liste und zeigt den Fehler an.
 
+## Entscheidungen (Jonas, 2026-11-15)
+
+| Nr. | Frage | Antwort |
+|---|---|---|
+| 1 | FRITZ!Box-Ziel und Limit | DNS-Filter; interner Speicher max. 8 MB frei, Datei zum Austausch max. 4 MB |
+| 2 | Einheit der Maximalgröße | KB |
+| 3 | Bereitstellung | Einstellbarer Pfad direkt auf FRITZ!Box-Speicher, zusätzlich Dateidialog |
+| 4 | Gleiche Priorität | Mehrere Listen dürfen dieselbe Priorität haben |
+| 5 | Auffüll-Reihenfolge | Rang aus Priorität und Häufigkeit, Formel über Settings einstellbar |
+| 6 | Sortierung | 0..A–Z (aufsteigend) |
+| 7 | Aktualisierung | Automatisch täglich, zusätzlich manuell |
+| 8 | Subdomains | Weglassen, falls das keine Auswirkung auf das Filtern hat |
+| 9 | Dauerhafte Ausnahmen | Domains manuell als Standard-Ausnahme anlegen, dauerhaft speichern |
+
 ## Offene Fragen
 
-1. **FRITZ!Box-Format und -Limit:** Wohin kommt die Datei in der FRITZ!Box (z. B. Kindersicherung, Filterliste „Gesperrte Internetseiten“)? Welches Zeilenformat und welche Größenbegrenzung gelten dort? Davon hängt der Standardwert für die maximale Größe ab.
-2. **Einheit der maximalen Größe:** Anzahl Einträge oder Bytes/KB?
-3. **Bereitstellung der Datei:** Speichern über den Android-Dateidialog, Teilen-Menü, oder etwas anderes (z. B. direkter Upload zur FRITZ!Box)?
-4. **„Höchste Priorität“:** Nur die eine Liste auf Platz 1, oder können mehrere Listen dieselbe Priorität haben?
-5. **Reihenfolge beim Auffüllen:** Vorschlag: zuerst nach Priorität der besten Liste, in der die Domain vorkommt (hoch vor niedrig), dann nach Häufigkeit (häufig vor selten). „Aufsteigend“ in der Vorgabe ist so gelesen, dass die Einträge in dieser Rangfolge nacheinander aufgenommen werden. Stimmt das?
-6. **Sortierung:** „Alphabetisch absteigend“ heißt Z vor A. Ist das so gewollt, oder ist A vor Z gemeint?
-7. **Aktualisierung:** Nur manuell, oder auch automatisch im Hintergrund (z. B. täglich)?
-8. **Subdomains:** Wenn `example.com` geschrieben wird, sollen `ads.example.com` usw. entfallen, um Platz zu sparen?
+1. **Standard-Rang-Formel:** Vorschlag: `Rang = a × Prioritätswert + b × Häufigkeit`, mit `a` und `b` in den Settings einstellbar. Der Prioritätswert ist bei der höchsten Priorität am größten. Passt das als Standard, und mit welchen Startwerten?
+2. **Subdomain-Verhalten der FRITZ!Box:** Blockt ein Eintrag `example.com` im DNS-Filter auch `ads.example.com`? Muss vor der Umsetzung von A6 (Subdomains weglassen) geprüft werden.
+3. **Zeilenformat der FRITZ!Box-Datei:** Eine Domain pro Zeile, oder ein anderes Format (z. B. Hosts- oder Adblock-Syntax)?
+4. **Zugriff auf den FRITZ!Box-Speicher:** Über welches Protokoll schreibt die App (SMB, FTP, WebDAV)? Wie werden die Zugangsdaten gespeichert?
