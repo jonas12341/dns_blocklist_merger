@@ -1,0 +1,373 @@
+<title>Blocklist Merger UI-POCs</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: concept switcher on top, one phone frame with the live mock, concept notes beside it (stacked on phones). */
+:root {
+  --bg: #eef1f5; --surface: #ffffff; --surface-2: #f4f6fa; --line: #d9dee7;
+  --fg: #18202c; --muted: #5d6878; --accent: #2456c9; --accent-soft: #e3eafb; --on-accent: #ffffff;
+  --ok: #1f7a4d; --ok-soft: #e1f3e9; --warn: #9a6200; --warn-soft: #fcf0d6; --err: #b3261e; --err-soft: #fbe3e1;
+  --frame: #1c222c;
+  --font-ui: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f131a; --surface: #171c25; --surface-2: #1e2430; --line: #2c3442;
+  --fg: #e6eaf1; --muted: #9aa5b5; --accent: #8fb0ff; --accent-soft: #233357; --on-accent: #0d1630;
+  --ok: #6fd3a0; --ok-soft: #173326; --warn: #f0c060; --warn-soft: #3a2d10; --err: #ff8f86; --err-soft: #3d1b19;
+  --frame: #05070a; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #0f131a; --surface: #171c25; --surface-2: #1e2430; --line: #2c3442;
+  --fg: #e6eaf1; --muted: #9aa5b5; --accent: #8fb0ff; --accent-soft: #233357; --on-accent: #0d1630;
+  --ok: #6fd3a0; --ok-soft: #173326; --warn: #f0c060; --warn-soft: #3a2d10; --err: #ff8f86; --err-soft: #3d1b19;
+  --frame: #05070a; color-scheme: dark; }
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-ui); font-size: 14px; line-height: 1.45;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 20px 40px; }
+h1 { font-size: 22px; margin: 0; text-wrap: balance; }
+.wrap { max-width: 1040px; margin: 0 auto; display: grid; gap: 20px; }
+.intro { color: var(--muted); max-width: 65ch; margin: 4px 0 0; }
+.switch { display: flex; flex-wrap: wrap; gap: 8px; }
+.switch button { font: inherit; font-weight: 600; border: 1px solid var(--line); background: var(--surface); color: var(--fg);
+  padding: 8px 14px; border-radius: 999px; cursor: pointer; }
+.switch button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.stage { display: grid; grid-template-columns: minmax(0, 400px) minmax(0, 1fr); gap: 28px; align-items: start; }
+@media (max-width: 760px) { .stage { grid-template-columns: minmax(0, 1fr); } }
+.notes { display: grid; gap: 10px; max-width: 60ch; }
+.notes h2 { font-size: 18px; margin: 0; }
+.notes ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+.notes .tag { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+
+/* Phone */
+.phone { width: 100%; max-width: 400px; height: 780px; background: var(--frame); border-radius: 34px; padding: 10px; }
+.screen { position: relative; height: 100%; background: var(--surface-2); border-radius: 26px; overflow: hidden; display: flex; flex-direction: column; }
+.appbar { display: flex; align-items: center; gap: 8px; padding: 14px 16px 10px; background: var(--surface); border-bottom: 1px solid var(--line); }
+.appbar h3 { font-size: 17px; margin: 0; flex: 1; min-width: 0; }
+.scroll { flex: 1; overflow-y: auto; padding: 12px; display: grid; gap: 12px; align-content: start; }
+.nav { display: grid; grid-template-columns: repeat(4, 1fr); background: var(--surface); border-top: 1px solid var(--line); }
+.nav button { font: inherit; font-size: 12px; background: none; border: 0; color: var(--muted); padding: 8px 2px 10px; cursor: pointer; display: grid; justify-items: center; gap: 2px; }
+.nav button .ico { width: 44px; height: 24px; border-radius: 12px; display: grid; place-items: center; font-size: 15px; }
+.nav button[aria-current="true"] { color: var(--fg); font-weight: 600; }
+.nav button[aria-current="true"] .ico { background: var(--accent-soft); color: var(--accent); }
+
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px; display: grid; gap: 10px; min-width: 0; }
+.card h4 { margin: 0; font-size: 14px; }
+.sec-title { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 4px 2px 0; }
+.row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.grow { flex: 1; min-width: 0; }
+.mono { font-family: var(--font-mono); font-size: 12.5px; overflow-wrap: anywhere; }
+.muted { color: var(--muted); font-size: 12.5px; }
+.pill { font-size: 11.5px; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+.pill.ok { background: var(--ok-soft); color: var(--ok); }
+.pill.err { background: var(--err-soft); color: var(--err); }
+.pill.warn { background: var(--warn-soft); color: var(--warn); }
+.pill.neutral { background: var(--surface-2); color: var(--muted); border: 1px solid var(--line); }
+.errbox { background: var(--err-soft); color: var(--err); border-radius: 10px; padding: 8px 10px; font-size: 12.5px; }
+.btn { font: inherit; font-weight: 600; border-radius: 999px; padding: 8px 14px; cursor: pointer; border: 1px solid var(--line); background: var(--surface); color: var(--fg); }
+.btn.primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.btn.small { padding: 4px 10px; font-size: 12.5px; }
+.btn:focus-visible, .switch button:focus-visible, .nav button:focus-visible, input:focus-visible, .stepper button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btns { display: flex; flex-wrap: wrap; gap: 8px; }
+.stepper { display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
+.stepper button { font: inherit; border: 0; background: var(--surface); color: var(--fg); width: 28px; height: 26px; cursor: pointer; }
+.stepper span { font-weight: 700; font-size: 12.5px; padding: 0 6px; font-variant-numeric: tabular-nums; }
+input[type=text], input[type=password], input[type=number], input[type=url], input[type=time] { font: inherit; width: 100%; padding: 8px 10px; border-radius: 10px;
+  border: 1px solid var(--line); background: var(--surface-2); color: var(--fg); }
+input[type=range] { width: 100%; accent-color: var(--accent); }
+label.field { display: grid; gap: 4px; font-size: 12.5px; color: var(--muted); }
+.toggle { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.toggle input { width: 20px; height: 20px; accent-color: var(--accent); }
+.dlist { display: grid; }
+.drow { display: flex; align-items: center; gap: 8px; padding: 7px 2px; border-bottom: 1px solid var(--line); min-width: 0; }
+.drow:last-child { border-bottom: 0; }
+.drow.excluded .mono { text-decoration: line-through; color: var(--muted); }
+.meter { height: 10px; border-radius: 6px; background: var(--surface-2); border: 1px solid var(--line); overflow: hidden; display: flex; }
+.meter i { display: block; height: 100%; }
+.meter .m1 { background: var(--accent); }
+.meter .m2 { background: color-mix(in srgb, var(--accent) 45%, transparent); }
+.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.stat { display: grid; gap: 2px; }
+.stat b { font-size: 17px; font-variant-numeric: tabular-nums; }
+.stat span { font-size: 11.5px; color: var(--muted); }
+.tabular { font-variant-numeric: tabular-nums; }
+.sheet { position: absolute; inset: 0; background: var(--surface-2); display: flex; flex-direction: column; z-index: 5; }
+.toast { position: absolute; left: 12px; right: 12px; bottom: 70px; background: var(--fg); color: var(--bg); border-radius: 12px; padding: 10px 12px; font-size: 13px; z-index: 9; }
+.step { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 10px; }
+.step .num { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; background: var(--accent-soft); color: var(--accent); font-size: 13px; }
+.step.open .num { background: var(--accent); color: var(--on-accent); }
+.step-head { display: flex; align-items: center; gap: 8px; cursor: pointer; background: none; border: 0; font: inherit; color: var(--fg); padding: 4px 0; text-align: left; width: 100%; }
+.step-head b { flex: 1; }
+.hist { display: flex; align-items: flex-end; gap: 6px; height: 70px; }
+.hist div { flex: 1; display: grid; gap: 2px; justify-items: center; align-content: end; height: 100%; }
+.hist i { display: block; width: 100%; background: var(--accent); border-radius: 4px 4px 0 0; }
+.hist span { font-size: 11px; color: var(--muted); }
+.banner { display: flex; gap: 8px; align-items: flex-start; background: var(--err-soft); color: var(--err); border-radius: 12px; padding: 10px 12px; font-size: 12.5px; }
+.ex { font-size: 11px; color: var(--muted); text-align: center; }
+@media (prefers-reduced-motion: no-preference) { .toast { animation: up .2s ease-out; } @keyframes up { from { transform: translateY(8px); opacity: .6; } } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>dns_blocklist_merger: drei UI-Entwürfe</h1>
+    <p class="intro">Klickbare Entwürfe für die Android-App. Alle drei nutzen dieselben Beispieldaten und dieselbe Auswahl-Logik aus der Spec (Rang = a × Prioritätswert + b × Häufigkeit). Die Domains sind generierte Beispiele, keine echten Listeninhalte.</p>
+  </header>
+  <div class="switch" role="group" aria-label="Entwurf wählen">
+    <button type="button" data-c="A" id="sw-A">A · Reiter unten</button>
+    <button type="button" data-c="B" id="sw-B">B · Startseite</button>
+    <button type="button" data-c="C" id="sw-C">C · Ablauf</button>
+  </div>
+  <div class="stage">
+    <div class="phone"><div class="screen" id="screen"></div></div>
+    <div class="notes" id="notes"></div>
+  </div>
+</div>
+
+<script>
+// ---------- sample data ----------
+function rng(seed) { return function () { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const R = rng(42);
+const S = {
+  concept: 'A', tab: 'lists', sheet: null, step: 1, q: '', toast: null,
+  lists: [
+    { id: 1, name: 'oisd big', url: 'https://big.oisd.nl', prio: 1, fmt: 'Adblock', status: 'ok', updated: '2026-11-15T06:00', share: .7 },
+    { id: 2, name: 'HaGeZi Pro', url: 'https://raw.githubusercontent.com/hagezi/dns-blocklists/main/adblock/pro.txt', prio: 2, fmt: 'Adblock', status: 'ok', updated: '2026-11-15T06:00', share: .55 },
+    { id: 3, name: 'StevenBlack hosts', url: 'https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts', prio: 2, fmt: 'Hosts', status: 'error', updated: '2026-11-14T06:00', share: .4,
+      error: 'HTTP 503: Server nicht erreichbar (15.11.2026, 06:00). Der Stand vom 14.11.2026 wird weiter genutzt.' },
+  ],
+  exceptions: ['analytics.google.com', 'fritz.box'],
+  settings: { maxKB: 4096, a: 10, b: 1, subdomains: false, autoTime: '06:00', path: 'smb://fritz.box/FRITZ.NAS/dnsfilter/blocklist.txt', user: 'jonas', pass: '••••••••' },
+  lastWrite: '2026-11-15T06:02', nextId: 4,
+};
+const brands = ['mediahub','newsflow','shopzone','gamebox','videoplus','socialnet','weatherly','fintrack','travelgo','musicbox','appstat','cloudly','datapix','quickad','sparkly','orbitads','luma','nexo','vexa','pixelpark','adnova','clickly','trackr','beaconia','metricio','promohub','bannerly','telemio','syncro','loggly'];
+const subs = ['ads','track','metrics','pixel','stat','beacon','telemetry','click','banner','tag','collect','sync'];
+const tlds = ['com','net','io','de','org','co','info'];
+const pool = new Map(); // domain -> Set(listId)
+function addDomain(d) { if (!pool.has(d)) pool.set(d, new Set()); }
+for (let i = 0; i < 70; i++) {
+  const root = brands[i % brands.length] + (i >= brands.length ? Math.floor(i / brands.length) + 1 : '') + '.' + tlds[Math.floor(R() * tlds.length)];
+  addDomain(root);
+  const n = 4 + Math.floor(R() * 12);
+  for (let k = 0; k < n; k++) addDomain(subs[Math.floor(R() * subs.length)] + (R() < .5 ? '' : Math.floor(R() * 9) + 1) + '.' + root);
+}
+['1rx.io','2mdn.net','33across.com','360yield.com','4dex.io','7eer.net','analytics.google.com','fritz.box','doubleclick.net','adservice.google.com'].forEach(addDomain);
+function assign(list) { for (const [, set] of pool) if (R() < list.share) set.add(list.id); }
+S.lists.forEach(assign);
+for (const [, set] of pool) if (!set.size) set.add(1);
+
+// ---------- selection logic (spec A5/A6) ----------
+const lineBytes = d => d.length + 4; // "||" + d + "^\n"
+function compute() {
+  const st = S.settings, active = S.lists.filter(l => l.status !== 'pending');
+  const prios = active.map(l => l.prio), top = Math.min(...prios), maxP = Math.max(...prios);
+  const exc = new Set(S.exceptions), items = [];
+  for (const [d, set] of pool) {
+    const ls = active.filter(l => set.has(l.id)); if (!ls.length) continue;
+    const best = Math.min(...ls.map(l => l.prio)), pv = maxP - best + 1;
+    items.push({ d, freq: ls.length, best, rank: st.a * pv + st.b * ls.length, excluded: exc.has(d) });
+  }
+  const live = items.filter(i => !i.excluded), names = new Set(live.map(i => i.d));
+  const parentIn = d => { const p = d.split('.'); for (let k = 1; k < p.length - 1; k++) if (names.has(p.slice(k).join('.'))) return true; return false; };
+  const cand = st.subdomains ? live.filter(i => !parentIn(i.d)) : live;
+  const merged = items.length - (st.subdomains ? live.length - cand.length : 0);
+  const must = cand.filter(i => i.best === top), rest = cand.filter(i => i.best !== top).sort((x, y) => y.rank - x.rank || x.d.localeCompare(y.d));
+  const limit = st.maxKB * 1024; let bytes = 0; const out = new Set();
+  must.forEach(i => { out.add(i.d); bytes += lineBytes(i.d); });
+  const mustBytes = bytes; let cut = 0;
+  for (const i of rest) { if (bytes + lineBytes(i.d) <= limit) { out.add(i.d); bytes += lineBytes(i.d); } else cut++; }
+  const sorted = [...out].sort((x, y) => x.localeCompare(y));
+  return { items, out, sorted, bytes, mustBytes, limit, cut, top, excluded: items.length - live.length, droppedSubs: live.length - cand.length, merged };
+}
+
+// ---------- helpers ----------
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const fmtDT = s => new Date(s).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+const kb = b => (b / 1024).toLocaleString('de-DE', { maximumFractionDigits: 1 }) + ' KB';
+const n = x => x.toLocaleString('de-DE');
+function toast(msg) { S.toast = msg; render(); clearTimeout(toast.t); toast.t = setTimeout(() => { S.toast = null; render(); }, 2600); }
+function statusPill(l) {
+  if (l.status === 'ok') return '<span class="pill ok">aktuell</span>';
+  if (l.status === 'error') return '<span class="pill err">Fehler</span>';
+  return '<span class="pill neutral">noch nicht geladen</span>';
+}
+
+// ---------- shared blocks ----------
+function listCard(l, compact) {
+  const count = [...pool.values()].filter(s => s.has(l.id)).length;
+  return `<div class="card">
+    <div class="row"><div class="grow"><h4>${esc(l.name)}</h4><div class="mono muted">${esc(l.url)}</div></div>
+      <div class="stepper" title="Priorität (1 = höchste)"><button type="button" data-act="prio-up" data-id="${l.id}" aria-label="Priorität erhöhen">−</button><span>P${l.prio}</span><button type="button" data-act="prio-down" data-id="${l.id}" aria-label="Priorität senken">+</button></div></div>
+    <div class="row">${statusPill(l)}<span class="muted grow">${l.status === 'pending' ? 'wird beim nächsten Lauf geladen' : 'Stand ' + fmtDT(l.updated) + ' · ' + n(count) + ' Domains · ' + l.fmt}</span>
+      ${compact ? '' : `<button type="button" class="btn small" data-act="del" data-id="${l.id}">Entfernen</button>`}</div>
+    ${l.error ? `<div class="errbox">${esc(l.error)}</div>` : ''}
+  </div>`;
+}
+function addListForm() {
+  return `<form class="card" data-form="add"><h4>Blockliste hinzufügen</h4>
+    <input type="url" id="new-url" placeholder="https://…/blocklist.txt" required>
+    <div class="btns"><button class="btn primary" type="submit">Hinzufügen</button></div></form>`;
+}
+function listsBlock(compact) {
+  const ls = [...S.lists].sort((a, b) => a.prio - b.prio || a.id - b.id);
+  return ls.map(l => listCard(l, compact)).join('') + addListForm();
+}
+function outputBlock(r) {
+  const st = S.settings, pctMust = Math.min(100, r.mustBytes / r.limit * 100), pctAll = Math.min(100, r.bytes / r.limit * 100);
+  return `<div class="card"><div class="row"><h4 class="grow">Ausgabedatei</h4>${r.mustBytes > r.limit ? '<span class="pill err">P' + r.top + ' allein über Limit</span>' : r.cut ? '<span class="pill warn">gekürzt</span>' : '<span class="pill ok">vollständig</span>'}</div>
+    <div class="meter" role="img" aria-label="Belegung ${kb(r.bytes)} von ${st.maxKB} KB"><i class="m1" style="width:${pctMust}%"></i><i class="m2" style="width:${Math.max(0, pctAll - pctMust)}%"></i></div>
+    <div class="muted tabular">${kb(r.bytes)} von ${n(st.maxKB)} KB · dunkel: Pflicht (P${r.top}), hell: nach Rang aufgefüllt</div>
+    <div class="stats"><div class="stat"><b>${n(r.out.size)}</b><span>Einträge</span></div><div class="stat"><b>${n(r.cut)}</b><span>wegen Limit raus</span></div><div class="stat"><b>${n(r.excluded)}</b><span>Ausnahmen</span></div></div>
+    <div class="muted">Zuletzt geschrieben: ${fmtDT(S.lastWrite)} · nächster Lauf täglich ${esc(st.autoTime)}</div>
+    <div class="btns"><button type="button" class="btn primary" data-act="write">Auf FRITZ!Box schreiben</button><button type="button" class="btn" data-act="save">Speichern unter…</button></div>
+    <div class="mono muted">${r.sorted.slice(0, 4).map(d => '||' + esc(d) + '^').join('<br>')}<br>…</div>
+  </div>`;
+}
+function domainsBlock(r, withExceptions) {
+  return `${withExceptions ? exceptionsBlock() : ''}<div class="card"><h4>Domains (${n(r.items.length)})</h4>
+    <input type="text" id="dsearch" placeholder="Domain suchen…" value="${esc(S.q)}" autocomplete="off">
+    <div class="dlist" id="dresults">${domainRows(r)}</div></div>`;
+}
+function domainRows(r) {
+  const q = S.q.trim().toLowerCase();
+  const rows = r.items.filter(i => !q || i.d.includes(q)).sort((x, y) => y.rank - x.rank || x.d.localeCompare(y.d));
+  const shown = rows.slice(0, 60);
+  return shown.map(i => {
+    const st = i.excluded ? '<span class="pill neutral">Ausnahme</span>' : r.out.has(i.d) ? (i.best === r.top ? '<span class="pill ok">Pflicht</span>' : '<span class="pill ok">drin</span>') : '<span class="pill warn">raus</span>';
+    return `<div class="drow ${i.excluded ? 'excluded' : ''}"><div class="grow"><div class="mono">${esc(i.d)}</div><div class="muted tabular">Rang ${i.rank} · ${i.freq}× · beste P${i.best}</div></div>${st}
+      <button type="button" class="btn small" data-act="${i.excluded ? 'unexclude' : 'exclude'}" data-d="${esc(i.d)}">${i.excluded ? 'Zulassen' : 'Ausschließen'}</button></div>`;
+  }).join('') + (rows.length > shown.length ? `<div class="muted" style="padding-top:6px">… ${n(rows.length - shown.length)} weitere. Suche eingrenzen.</div>` : '') + (rows.length ? '' : '<div class="muted">Keine Domain gefunden.</div>');
+}
+function exceptionsBlock() {
+  return `<form class="card" data-form="exc"><h4>Dauerhafte Ausnahmen</h4><div class="muted">Werden nie geschrieben, auch wenn eine Liste sie enthält.</div>
+    ${S.exceptions.map(d => `<div class="row"><span class="mono grow">${esc(d)}</span><button type="button" class="btn small" data-act="unexclude" data-d="${esc(d)}">Entfernen</button></div>`).join('')}
+    <div class="row"><input type="text" id="new-exc" placeholder="z. B. login.example.com" required><button class="btn" type="submit">Hinzufügen</button></div></form>`;
+}
+function settingsBlock() {
+  const s = S.settings;
+  return `<div class="card"><h4>Ausgabe</h4>
+    <label class="field">Maximale Größe: <b class="tabular" id="maxkb-l">${n(s.maxKB)} KB</b> (FRITZ!Box: max. 4096 KB)
+      <input type="range" id="set-maxKB" min="5" max="4096" step="1" value="${s.maxKB}"></label>
+    <div class="row"><label class="field grow">Gewicht Priorität (a)<input type="number" id="set-a" min="0" max="100" value="${s.a}"></label>
+      <label class="field grow">Gewicht Häufigkeit (b)<input type="number" id="set-b" min="0" max="100" value="${s.b}"></label></div>
+    <div class="muted">Rang = a × Prioritätswert + b × Häufigkeit</div>
+    <label class="toggle"><span>Subdomains weglassen, wenn die Hauptdomain drin ist</span><input type="checkbox" id="set-subdomains" ${s.subdomains ? 'checked' : ''}></label></div>
+  <div class="card"><h4>Aktualisierung</h4>
+    <label class="field">Täglich um<input type="time" id="set-autoTime" value="${esc(s.autoTime)}"></label>
+    <div class="btns"><button type="button" class="btn" data-act="refresh">Jetzt aktualisieren</button></div></div>
+  <div class="card"><h4>FRITZ!Box-Freigabe</h4>
+    <label class="field">Pfad<input type="text" id="set-path" value="${esc(s.path)}"></label>
+    <label class="field">Benutzer<input type="text" id="set-user" value="${esc(s.user)}"></label>
+    <label class="field">Passwort<input type="password" id="set-pass" value="${esc(s.pass)}"></label>
+    <div class="btns"><button type="button" class="btn" data-act="test">Verbindung testen</button></div></div>`;
+}
+function errorBanner() {
+  const bad = S.lists.filter(l => l.status === 'error');
+  return bad.length ? `<div class="banner"><b>!</b><span>${bad.length === 1 ? esc(bad[0].name) + ' konnte nicht geladen werden. Der letzte gute Stand wird genutzt.' : bad.length + ' Listen konnten nicht geladen werden.'}</span></div>` : '';
+}
+
+// ---------- concepts ----------
+const NOTES = {
+  A: { tag: 'Entwurf A', title: 'Reiter unten', points: ['Vier feste Bereiche: Listen, Domains, Ausgabe, Einstellungen.', 'Typisches Android-Muster, jeder Bereich ist einen Tipp entfernt.', 'Gut, wenn du oft gezielt etwas suchst, z. B. eine Domain ausschließen.', 'Nachteil: Der Gesamtstatus ist auf mehrere Reiter verteilt.'] },
+  B: { tag: 'Entwurf B', title: 'Startseite mit Status', points: ['Eine Startseite: Fehler, Belegung der Ausgabedatei und alle Listen auf einen Blick.', 'Domains und Ausnahmen öffnen als eigene Seite, Einstellungen über das Zahnrad.', 'Gut, wenn die App meist nur kurz geprüft wird ("läuft alles?").', 'Nachteil: Die Domain-Suche ist einen Schritt tiefer.'] },
+  C: { tag: 'Entwurf C', title: 'Ablauf in vier Schritten', points: ['Die App zeigt den Weg der Daten: Quellen, Zusammenführen, Filtern, Ausgabe.', 'Jeder Schritt zeigt seine Zahlen, z. B. wie viele Domains in wie vielen Listen stehen.', 'Gut, um die Auswahl-Logik nachzuvollziehen und Einstellungen zu verstehen.', 'Nachteil: Mehr Scrollen, für den Alltag etwas umständlicher.'] },
+};
+function renderA(r) {
+  const tabs = [['lists', 'Listen', '☰'], ['domains', 'Domains', '⌕'], ['output', 'Ausgabe', '⇩'], ['settings', 'Einstellungen', '⚙']];
+  const title = tabs.find(t => t[0] === S.tab)[1];
+  let body = '';
+  if (S.tab === 'lists') body = errorBanner() + listsBlock(false);
+  if (S.tab === 'domains') body = domainsBlock(r, true);
+  if (S.tab === 'output') body = outputBlock(r);
+  if (S.tab === 'settings') body = settingsBlock();
+  return `<div class="appbar"><h3>${title}</h3>${S.tab === 'lists' ? '<button type="button" class="btn small" data-act="refresh">Aktualisieren</button>' : ''}</div>
+    <div class="scroll">${body}</div>
+    <nav class="nav">${tabs.map(t => `<button type="button" data-tab="${t[0]}" aria-current="${S.tab === t[0]}"><span class="ico">${t[2]}</span>${t[1]}</button>`).join('')}</nav>`;
+}
+function renderB(r) {
+  let sheet = '';
+  if (S.sheet) {
+    const t = S.sheet === 'domains' ? 'Domains & Ausnahmen' : 'Einstellungen';
+    sheet = `<div class="sheet"><div class="appbar"><button type="button" class="btn small" data-act="close">← Zurück</button><h3>${t}</h3></div>
+      <div class="scroll">${S.sheet === 'domains' ? domainsBlock(r, true) : settingsBlock()}</div></div>`;
+  }
+  return `<div class="appbar"><h3>Blocklist Merger</h3><button type="button" class="btn small" data-act="refresh">Aktualisieren</button><button type="button" class="btn small" data-act="open" data-s="settings" aria-label="Einstellungen">⚙</button></div>
+    <div class="scroll">${errorBanner()}${outputBlock(r)}
+      <button type="button" class="card" data-act="open" data-s="domains" style="text-align:left;cursor:pointer;font:inherit;color:inherit"><div class="row"><div class="grow"><h4>Domains & Ausnahmen</h4><div class="muted">${n(r.items.length)} Domains · ${S.exceptions.length} dauerhafte Ausnahmen</div></div><span>›</span></div></button>
+      <div class="sec-title">Blocklisten nach Priorität</div>${listsBlock(true)}</div>${sheet}`;
+}
+function renderC(r) {
+  const okCount = S.lists.filter(l => l.status === 'ok').length;
+  const freq = [1, 2, 3].map(f => r.items.filter(i => i.freq === f).length), fmax = Math.max(1, ...freq);
+  const steps = [
+    { t: 'Quellen', sum: `${S.lists.length} Listen · ${okCount} aktuell`, body: errorBanner() + listsBlock(false) },
+    { t: 'Zusammenführen', sum: `${n(r.items.length)} eindeutige Domains`, body: `<div class="card"><h4>In wie vielen Listen steht eine Domain?</h4>
+        <div class="hist">${freq.map((v, k) => `<div><span class="tabular">${n(v)}</span><i style="height:${Math.round(v / fmax * 52)}px"></i><span>${k + 1}×</span></div>`).join('')}</div>
+        <div class="muted">Häufigkeit fließt mit Gewicht b = ${S.settings.b} in den Rang ein, Priorität mit a = ${S.settings.a}.</div></div>` },
+    { t: 'Filtern', sum: `${n(r.excluded)} Ausnahmen${S.settings.subdomains ? ' · ' + n(r.droppedSubs) + ' Subdomains' : ''}`, body: exceptionsBlock() + `<div class="card"><label class="toggle"><span>Subdomains weglassen, wenn die Hauptdomain drin ist</span><input type="checkbox" id="set-subdomains" ${S.settings.subdomains ? 'checked' : ''}></label>${S.settings.subdomains ? `<div class="muted">${n(r.droppedSubs)} Subdomains fallen weg.</div>` : ''}</div>` + domainsBlock(r, false) },
+    { t: 'Ausgabe', sum: `${kb(r.bytes)} von ${n(S.settings.maxKB)} KB`, body: outputBlock(r) + settingsBlock() },
+  ];
+  return `<div class="appbar"><h3>Blocklist Merger</h3><button type="button" class="btn small" data-act="refresh">Aktualisieren</button></div>
+    <div class="scroll">${steps.map((s, k) => `<div class="step ${S.step === k + 1 ? 'open' : ''}"><span class="num">${k + 1}</span><div style="min-width:0;display:grid;gap:10px">
+      <button type="button" class="step-head" data-step="${k + 1}" aria-expanded="${S.step === k + 1}"><b>${s.t}</b><span class="muted">${s.sum}</span></button>${S.step === k + 1 ? s.body : ''}</div></div>`).join('')}</div>`;
+}
+
+// ---------- render + events ----------
+const screen = document.getElementById('screen');
+function render() {
+  const r = compute();
+  screen.innerHTML = { A: renderA, B: renderB, C: renderC }[S.concept](r) + (S.toast ? `<div class="toast" role="status">${esc(S.toast)}</div>` : '') ;
+  document.querySelectorAll('.switch button').forEach(b => b.setAttribute('aria-pressed', b.dataset.c === S.concept));
+  const nt = NOTES[S.concept];
+  document.getElementById('notes').innerHTML = `<span class="tag">${nt.tag}</span><h2>${nt.title}</h2><ul>${nt.points.map(p => `<li>${p}</li>`).join('')}</ul>
+    <p class="muted">Zum Ausprobieren: Priorität mit −/+ ändern, Domains ausschließen, maximale Größe in den Einstellungen auf z. B. 30 KB ziehen.</p>`;
+}
+document.querySelector('.switch').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; S.concept = b.dataset.c; S.sheet = null; render(); try { localStorage.setItem('poc-concept', S.concept); } catch (_) {} });
+screen.addEventListener('click', e => {
+  const t = e.target.closest('[data-tab],[data-act],[data-step]'); if (!t) return;
+  if (t.dataset.tab) { S.tab = t.dataset.tab; return render(); }
+  if (t.dataset.step) { const s = +t.dataset.step; S.step = S.step === s ? 0 : s; return render(); }
+  const id = +t.dataset.id, l = S.lists.find(x => x.id === id);
+  switch (t.dataset.act) {
+    case 'prio-up': l.prio = Math.max(1, l.prio - 1); break;
+    case 'prio-down': l.prio = Math.min(9, l.prio + 1); break;
+    case 'del': S.lists = S.lists.filter(x => x.id !== id); for (const [, s] of pool) s.delete(id); return toast(l.name + ' entfernt.');
+    case 'exclude': if (!S.exceptions.includes(t.dataset.d)) S.exceptions.push(t.dataset.d); return toast(t.dataset.d + ' wird nicht mehr geschrieben.');
+    case 'unexclude': S.exceptions = S.exceptions.filter(d => d !== t.dataset.d); break;
+    case 'refresh': S.lists.forEach(x => { if (x.status === 'pending') { x.status = 'ok'; assign(x); } if (x.status === 'ok') x.updated = '2026-11-15T09:41'; });
+      return toast('Aktualisiert. StevenBlack hosts: weiterhin HTTP 503.');
+    case 'write': S.lastWrite = '2026-11-15T09:41'; return toast('Geschrieben nach ' + S.settings.path);
+    case 'save': return toast('Hier öffnet sich der Android-Dateidialog.');
+    case 'test': return toast('Verbindung zu fritz.box ok, Ordner beschreibbar.');
+    case 'open': S.sheet = t.dataset.s; break;
+    case 'close': S.sheet = null; break;
+  }
+  render();
+});
+screen.addEventListener('submit', e => {
+  e.preventDefault();
+  if (e.target.dataset.form === 'add') {
+    const url = document.getElementById('new-url').value.trim(); if (!url) return;
+    let name; try { name = new URL(url).hostname; } catch (_) { name = url; }
+    S.lists.push({ id: S.nextId++, name, url, prio: 3, fmt: 'erkannt beim Laden', status: 'pending', updated: '2026-11-15T09:41', share: .3 });
+    toast(name + ' hinzugefügt (P3). Wird beim nächsten Aktualisieren geladen.');
+  } else {
+    const d = document.getElementById('new-exc').value.trim().toLowerCase(); if (!d) return;
+    if (!S.exceptions.includes(d)) S.exceptions.push(d); addDomain(d);
+    toast(d + ' als dauerhafte Ausnahme gespeichert.');
+  }
+});
+screen.addEventListener('input', e => {
+  if (e.target.id === 'dsearch') { S.q = e.target.value; document.getElementById('dresults').innerHTML = domainRows(compute()); }
+  if (e.target.id === 'set-maxKB') document.getElementById('maxkb-l').textContent = n(+e.target.value) + ' KB';
+});
+screen.addEventListener('change', e => {
+  const m = e.target.id && e.target.id.match(/^set-(\w+)$/); if (!m) return;
+  const k = m[1], s = S.settings;
+  if (k === 'subdomains') s.subdomains = e.target.checked;
+  else if (['maxKB', 'a', 'b'].includes(k)) s[k] = Math.max(k === 'maxKB' ? 5 : 0, Math.min(k === 'maxKB' ? 4096 : 100, +e.target.value || 0));
+  else s[k] = e.target.value;
+  render();
+});
+try { const c = localStorage.getItem('poc-concept'); if (c && NOTES[c]) S.concept = c; } catch (_) {}
+render();
+</script>
