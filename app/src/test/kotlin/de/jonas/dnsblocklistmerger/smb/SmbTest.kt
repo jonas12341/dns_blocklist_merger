@@ -4,7 +4,10 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.hierynomus.mserref.NtStatus
 import com.hierynomus.mssmb2.SMB2MessageCommandCode
+import com.hierynomus.mssmb2.SMB2Dialect
 import com.hierynomus.mssmb2.SMBApiException
+import com.hierynomus.protocol.transport.TransportException
+import com.hierynomus.smbj.common.SMBRuntimeException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -20,9 +23,12 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import java.io.File
+import java.io.EOFException
 import java.io.IOException
 import java.net.ConnectException
+import java.net.SocketException
 import java.net.UnknownHostException
+import java.util.concurrent.ExecutionException
 import javax.crypto.KeyGenerator
 
 class SmbTest {
@@ -97,6 +103,63 @@ class SmbTest {
         assertEquals("Verzeichnis nicht gefunden", SmbWriter.messageFor(api(NtStatus.STATUS_OBJECT_PATH_NOT_FOUND)))
         assertEquals("FRITZ!Box nicht erreichbar: Name nicht gefunden", SmbWriter.messageFor(UnknownHostException("fritz.box")))
         assertEquals("FRITZ!Box nicht erreichbar", SmbWriter.messageFor(IOException("wrapped", ConnectException("refused"))))
+        assertEquals("Verbindungsfehler: kaputt", SmbWriter.messageFor(IOException("wrapper", IOException("kaputt"))))
+    }
+
+    /** The chain smbj threw on a tester's FRITZ!Box (#20). */
+    private fun connectionReset(): Exception = ExecutionException(
+        SMBRuntimeException(TransportException(SocketException("Connection reset"))),
+    )
+
+    @Test
+    fun droppedConnectionGetsAReadableMessage() {
+        val message = SmbWriter.messageFor(connectionReset())
+        assertTrue(message, message.startsWith(SmbWriter.CONNECTION_DROPPED))
+        assertTrue(message, message.endsWith("(Connection reset)"))
+        assertFalse(message, message.contains("java."))
+    }
+
+    @Test
+    fun onlyDroppedConnectionsAreRetried() {
+        assertTrue(SmbWriter.isDroppedConnection(connectionReset()))
+        assertTrue(SmbWriter.isDroppedConnection(TransportException(EOFException("closed"))))
+        assertFalse(SmbWriter.isDroppedConnection(api(NtStatus.STATUS_LOGON_FAILURE)))
+        assertFalse(SmbWriter.isDroppedConnection(IOException("x", ConnectException("refused"))))
+        assertFalse(SmbWriter.isDroppedConnection(UnknownHostException("fritz.box")))
+        assertFalse(SmbWriter.isDroppedConnection(SmbWriteException("Verzeichnis nicht gefunden")))
+        assertFalse(SmbWriter.isDroppedConnection(IOException("other")))
+    }
+
+    @Test
+    fun fallbackTriesTheNextDialectSetOnlyAfterADroppedConnection() {
+        val tried = mutableListOf<String>()
+        val result = SmbWriter.withFallback(listOf("3.1.1", "3.0", "2.x")) {
+            tried += it
+            if (it == "3.1.1") throw connectionReset()
+            "ok with $it"
+        }
+        assertEquals("ok with 3.0", result)
+        assertEquals(listOf("3.1.1", "3.0"), tried)
+
+        tried.clear()
+        val login = runCatching { SmbWriter.withFallback(listOf("a", "b")) { tried += it; throw api(NtStatus.STATUS_LOGON_FAILURE) } }
+        assertTrue(login.exceptionOrNull() is SMBApiException)
+        assertEquals(listOf("a"), tried)
+
+        tried.clear()
+        val all = runCatching { SmbWriter.withFallback(listOf("a", "b")) { tried += it; throw connectionReset() } }
+        assertTrue(SmbWriter.isDroppedConnection(all.exceptionOrNull()!!))
+        assertEquals(listOf("a", "b"), tried)
+    }
+
+    @Test
+    fun negotiationFallbacksEndWithoutSmb311() {
+        val configs = negotiationFallbacks()
+        assertEquals(3, configs.size)
+        assertTrue(SMB2Dialect.SMB_3_1_1 in configs[0].supportedDialects)
+        assertFalse(SMB2Dialect.SMB_3_1_1 in configs[1].supportedDialects)
+        assertEquals(setOf(SMB2Dialect.SMB_2_1, SMB2Dialect.SMB_2_0_2), configs[2].supportedDialects.toSet())
+        assertTrue(configs[2].isUseMultiProtocolNegotiate)
     }
 
     private class FakeFiles(val failWith: Exception? = null) : SmbFiles {

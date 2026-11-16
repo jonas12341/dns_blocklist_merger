@@ -59,7 +59,7 @@ Ohne diesen Schlüssel lassen sich keine Updates über eine installierte Release
 ## Erste Schritte in der App
 
 1. Blocklisten-Adressen hinzufügen (z. B. `https://big.oisd.nl`) und oben auf „Aktualisieren“ tippen.
-2. In den Einstellungen die FRITZ!Box-Freigabe eintragen, z. B. `smb://fritz.box/FRITZ.NAS/dnsfilter/blocklist.txt`, dazu Benutzer und Passwort, dann „Verbindung testen“. Das Verzeichnis muss es schon geben.
+2. In den Einstellungen die FRITZ!Box-Freigabe eintragen, z. B. `smb://fritz.box/FRITZ.NAS/dnsfilter/blocklist.txt`, dazu Benutzer und Passwort, dann „Verbindung testen“. Das Verzeichnis muss es schon geben. In der FRITZ!Box muss die Freigabe als Netzlaufwerk (SMB) eingeschaltet sein und der Benutzer Zugang zu NAS-Inhalten mit Schreibrecht haben. Die App spricht nur SMB2/3 (FRITZ!OS 7 oder neuer).
 3. „Auf FRITZ!Box schreiben“ oder auf den täglichen Lauf warten.
 
 ## Aufbau

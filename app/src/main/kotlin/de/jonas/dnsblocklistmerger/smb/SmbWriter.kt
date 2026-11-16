@@ -3,6 +3,7 @@ package de.jonas.dnsblocklistmerger.smb
 import com.hierynomus.msdtyp.AccessMask
 import com.hierynomus.mserref.NtStatus
 import com.hierynomus.mssmb2.SMB2CreateDisposition
+import com.hierynomus.mssmb2.SMB2Dialect
 import com.hierynomus.mssmb2.SMB2ShareAccess
 import com.hierynomus.mssmb2.SMBApiException
 import com.hierynomus.security.bc.BCSecurityProvider
@@ -13,9 +14,11 @@ import com.hierynomus.smbj.io.ArrayByteChunkProvider
 import com.hierynomus.smbj.share.DiskShare
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.EOFException
 import java.io.IOException
 import java.net.ConnectException
 import java.net.NoRouteToHostException
+import java.net.SocketException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import java.util.concurrent.TimeUnit
@@ -88,27 +91,74 @@ class SmbWriter(private val files: SmbFiles = SmbjFiles()) {
                     is UnknownHostException -> return "FRITZ!Box nicht erreichbar: Name nicht gefunden"
                     is ConnectException, is NoRouteToHostException, is SocketTimeoutException ->
                         return "FRITZ!Box nicht erreichbar"
+                    is SocketException, is EOFException -> return CONNECTION_DROPPED + " (${rootMessage(e)})"
                 }
                 e = e.cause
             }
-            return if (error is IOException) "Verbindungsfehler: ${error.message ?: error.javaClass.simpleName}"
-            else "Fehler: ${error.message ?: error.javaClass.simpleName}"
+            val prefix = if (error is IOException || error.cause is IOException) "Verbindungsfehler" else "Fehler"
+            return "$prefix: ${rootMessage(error)}"
+        }
+
+        const val CONNECTION_DROPPED = "Die FRITZ!Box hat die Verbindung abgebrochen. In der FRITZ!Box prüfen: " +
+            "Heimnetz > USB / Speicher > Heimnetzfreigabe: Freigabe als Netzlaufwerk (SMB) eingeschaltet; " +
+            "System > FRITZ!Box-Benutzer: Benutzer hat Zugang zu NAS-Inhalten mit Schreibrecht. " +
+            "Nötig ist FRITZ!OS 7 oder neuer (SMB2/3)"
+
+        /** Message of the innermost cause, so wrapper exceptions do not end up in the UI. */
+        private fun rootMessage(error: Throwable): String {
+            var e = error
+            while (e.cause != null && e.cause !== e) e = e.cause!!
+            return e.message ?: e.javaClass.simpleName
+        }
+
+        /**
+         * True when the server dropped the connection, e.g. a reset during the SMB negotiation.
+         * Then another dialect set may work; login, path or network errors are final.
+         */
+        fun isDroppedConnection(error: Throwable): Boolean {
+            var e: Throwable? = error
+            var dropped = false
+            while (e != null) {
+                when (e) {
+                    is SMBApiException, is SmbWriteException, is UnknownHostException, is ConnectException,
+                    is NoRouteToHostException, is SocketTimeoutException,
+                    -> return false
+                    is SocketException, is EOFException -> dropped = true
+                }
+                e = e.cause
+            }
+            return dropped
+        }
+
+        /** Runs [block] with each option in turn while the connection gets dropped; other errors stop at once. */
+        fun <O, T> withFallback(options: List<O>, block: (O) -> T): T {
+            require(options.isNotEmpty())
+            var last: Exception? = null
+            for (option in options) {
+                try {
+                    return block(option)
+                } catch (e: Exception) {
+                    if (!isDroppedConnection(e)) throw e
+                    last = e
+                }
+            }
+            throw last!!
         }
     }
 }
 
-/** smbj implementation; SMB2/3 only, as smbj does not speak SMB1. */
-class SmbjFiles : SmbFiles {
-    private fun client() = SMBClient(
-        SmbConfig.builder()
-            .withSecurityProvider(BCSecurityProvider())
-            .withTimeout(20, TimeUnit.SECONDS)
-            .withSoTimeout(20, TimeUnit.SECONDS)
-            .build(),
-    )
+/**
+ * smbj implementation; SMB2/3 only, as smbj does not speak SMB1.
+ * Some SMB servers drop the connection when offered SMB 3.1.1 (#20), so a dropped
+ * connection is retried with older dialect sets.
+ */
+class SmbjFiles(private val configs: List<SmbConfig> = negotiationFallbacks()) : SmbFiles {
 
     private fun <T> withShare(target: SmbTarget, credentials: SmbCredentials, block: (DiskShare) -> T): T =
-        client().use { client ->
+        SmbWriter.withFallback(configs) { config -> withShare(config, target, credentials, block) }
+
+    private fun <T> withShare(config: SmbConfig, target: SmbTarget, credentials: SmbCredentials, block: (DiskShare) -> T): T =
+        SMBClient(config).use { client ->
             client.connect(target.host).use { connection ->
                 val auth = AuthenticationContext(credentials.user, credentials.password.toCharArray(), null)
                 connection.authenticate(auth).use { session ->
@@ -154,4 +204,17 @@ class SmbjFiles : SmbFiles {
             ).use { it.write("test".toByteArray(), 0) }
             share.rm(probe)
         }
+}
+
+/** smbj default (SMB 3.1.1 down to 2.0.2), then without 3.1.1, then SMB 2.x with an SMB1-style negotiate. */
+fun negotiationFallbacks(): List<SmbConfig> {
+    fun base() = SmbConfig.builder()
+        .withSecurityProvider(BCSecurityProvider())
+        .withTimeout(20, TimeUnit.SECONDS)
+        .withSoTimeout(20, TimeUnit.SECONDS)
+    return listOf(
+        base().build(),
+        base().withDialects(SMB2Dialect.SMB_3_0_2, SMB2Dialect.SMB_3_0, SMB2Dialect.SMB_2_1, SMB2Dialect.SMB_2_0_2).build(),
+        base().withDialects(SMB2Dialect.SMB_2_1, SMB2Dialect.SMB_2_0_2).withMultiProtocolNegotiate(true).build(),
+    )
 }
