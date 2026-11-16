@@ -6,7 +6,7 @@ Spezifikation: [docs/spec.md](docs/spec.md)
 
 ## Bauen
 
-Voraussetzungen: JDK 17 und ein Android SDK mit Platform 37 (`ANDROID_HOME` oder `local.properties` mit `sdk.dir=...`).
+Voraussetzungen: JDK 21 (Robolectric-Tests mit Android 16 brauchen es) und ein Android SDK mit Platform 37 (`ANDROID_HOME` oder `local.properties` mit `sdk.dir=...`).
 
 ```bash
 ./gradlew assembleDebug test
