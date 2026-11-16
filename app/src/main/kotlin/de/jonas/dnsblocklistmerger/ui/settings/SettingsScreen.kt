@@ -1,5 +1,6 @@
 package de.jonas.dnsblocklistmerger.ui.settings
 
+import de.jonas.dnsblocklistmerger.core.InputText
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -249,7 +250,7 @@ private fun SmbCard(settings: Settings, passwordSet: Boolean, busy: String?, act
                     actions.onSaveSmb(path, user, newPassword)
                     password = ""
                 },
-                enabled = pathOk && (path.trim() != settings.smbPath || user.trim() != settings.smbUser || newPassword != null),
+                enabled = pathOk && (InputText.withoutSpacesAfterDots(path) != settings.smbPath || user.trim() != settings.smbUser || newPassword != null),
             ) { Text("Speichern") }
             OutlinedButton(
                 onClick = { actions.onTestSmb(path, user, newPassword) },

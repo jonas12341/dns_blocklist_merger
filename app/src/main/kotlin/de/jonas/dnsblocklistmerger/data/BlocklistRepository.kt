@@ -2,6 +2,7 @@ package de.jonas.dnsblocklistmerger.data
 
 import androidx.paging.PagingSource
 import androidx.room.withTransaction
+import de.jonas.dnsblocklistmerger.core.InputText
 import de.jonas.dnsblocklistmerger.core.ParsedList
 import de.jonas.dnsblocklistmerger.core.Selection
 import de.jonas.dnsblocklistmerger.core.SelectionResult
@@ -32,6 +33,25 @@ class BlocklistRepository(
         require(lists.getAll().none { it.url == clean }) { "Diese Liste ist schon vorhanden." }
         val prio = priority ?: ((lists.maxPriority() ?: 0) + 1)
         return lists.insert(BlocklistEntity(url = clean, name = nameFor(clean), priority = prio.coerceAtLeast(1)))
+    }
+
+    /**
+     * Changes the URL of a list. A new URL is a new source: status, format and the stored
+     * domains are reset, so the next refresh loads it fresh. Throws [IllegalArgumentException]
+     * for a bad URL or one another list already has.
+     */
+    suspend fun updateUrl(id: Long, url: String) {
+        val clean = validateUrl(url)
+        val list = lists.get(id) ?: return
+        if (list.url == clean) return
+        require(lists.getAll().none { it.id != id && it.url == clean }) { "Diese Liste ist schon vorhanden." }
+        files.delete(id)
+        lists.update(
+            list.copy(
+                url = clean, name = nameFor(clean), format = null, status = ListStatus.PENDING, errorMessage = null,
+                lastSuccessAt = null, lastAttemptAt = null, etag = null, lastModified = null, domainCount = 0,
+            ),
+        )
     }
 
     suspend fun removeList(id: Long) {
@@ -79,7 +99,7 @@ class BlocklistRepository(
 
     /** Returns false when [raw] is not a valid domain. */
     suspend fun addException(raw: String): Boolean {
-        val domain = de.jonas.dnsblocklistmerger.core.DomainNormalizer.normalize(raw) ?: return false
+        val domain = de.jonas.dnsblocklistmerger.core.DomainNormalizer.normalize(InputText.withoutWhitespace(raw)) ?: return false
         exceptions.insert(ExceptionEntity(domain, clock()))
         return true
     }
@@ -88,7 +108,7 @@ class BlocklistRepository(
 
     fun observeOutputState(): Flow<OutputStateEntity?> = output.observeState()
 
-    fun pageDomains(query: String): PagingSource<Int, OutputDomainEntity> = output.pageDomains(query.trim().lowercase())
+    fun pageDomains(query: String): PagingSource<Int, OutputDomainEntity> = output.pageDomains(InputText.withoutWhitespace(query).lowercase())
 
     /** The output file as it would be written now. */
     suspend fun renderOutput(): String = buildString {
@@ -137,7 +157,7 @@ class BlocklistRepository(
         const val MAX_PRIORITY = 99
 
         fun validateUrl(raw: String): String {
-            val trimmed = raw.trim()
+            val trimmed = InputText.withoutWhitespace(raw)
             val uri = runCatching { URI(trimmed) }.getOrNull()
             require(uri != null && (uri.scheme == "https" || uri.scheme == "http") && !uri.host.isNullOrBlank()) {
                 "Bitte eine gültige http- oder https-Adresse eingeben."
