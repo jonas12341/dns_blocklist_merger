@@ -16,7 +16,13 @@ import de.jonas.dnsblocklistmerger.ui.home.HomeActions
 import de.jonas.dnsblocklistmerger.ui.home.HomeScreen
 import de.jonas.dnsblocklistmerger.ui.home.HomeUiState
 import de.jonas.dnsblocklistmerger.ui.theme.AppTheme
+import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.performTextReplacement
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -60,6 +66,46 @@ class HomeScreenTest {
     fun darkThemeRenders() {
         compose.setContent { AppTheme(dark = true, dynamic = false) { HomeScreen(HomeUiState(lists, output), HomeActions()) } }
         compose.saveScreenshot("home-dark")
+    }
+
+    @Test
+    fun tapShowsTheWholeUrlAndEditSavesTheCleanedUrl() {
+        val longUrl = "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/adblock/pro.plus.mini.txt"
+        val list = lists[0].copy(url = longUrl)
+        val edits = mutableListOf<Pair<Long, String>>()
+        compose.setContent {
+            AppTheme(dynamic = false) {
+                HomeScreen(
+                    HomeUiState(listOf(list), output),
+                    HomeActions(onEditUrl = { id, url, done -> edits += id to url; done(null) }),
+                )
+            }
+        }
+        // Unmerged: the clickable column merges name and URL into one node.
+        assertTrue(compose.onNodeWithText(longUrl, useUnmergedTree = true).isTextCut())
+        compose.onNodeWithText(longUrl, useUnmergedTree = true).performClick()
+        assertFalse(compose.onNodeWithText(longUrl, useUnmergedTree = true).isTextCut())
+        compose.saveScreenshot("home-url-expanded")
+
+        compose.onNodeWithContentDescription("Bearbeiten").performClick()
+        compose.onNode(hasSetTextAction() and hasText(longUrl)).performTextReplacement("https://big. oisd. nl")
+        compose.onNode(hasSetTextAction() and hasText("https://big.oisd.nl")).assertIsDisplayed()
+        compose.saveScreenshot("home-url-edit")
+        compose.onNodeWithText("Speichern").performClick()
+        assertEquals(listOf(1L to "https://big.oisd.nl"), edits)
+        compose.onNode(hasSetTextAction() and hasText("https://big.oisd.nl")).assertDoesNotExist()
+    }
+
+    @Test
+    fun editShowsTheError() {
+        compose.setContent {
+            AppTheme(dynamic = false) {
+                HomeScreen(HomeUiState(lists, output), HomeActions(onEditUrl = { _, _, done -> done("Diese Liste ist schon vorhanden.") }))
+            }
+        }
+        compose.onAllNodesWithContentDescription("Bearbeiten")[0].performClick()
+        compose.onNodeWithText("Speichern").performClick()
+        compose.onNodeWithText("Diese Liste ist schon vorhanden.").assertIsDisplayed()
     }
 
     @Test

@@ -61,6 +61,19 @@ class HomeViewModel(
         addError.value = null
     }
 
+    fun editUrl(id: Long, url: String, onResult: (String?) -> Unit) {
+        viewModelScope.launch {
+            try {
+                lists.updateUrl(id, url)
+            } catch (e: IllegalArgumentException) {
+                onResult(e.message ?: "Ungültige Adresse.")
+                return@launch
+            }
+            onResult(null)
+            controller.refresh()
+        }
+    }
+
     fun removeList(id: Long) {
         viewModelScope.launch {
             lists.removeList(id)

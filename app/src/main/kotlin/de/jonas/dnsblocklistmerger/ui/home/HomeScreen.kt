@@ -19,6 +19,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
@@ -55,6 +57,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import de.jonas.dnsblocklistmerger.core.InputText
 import de.jonas.dnsblocklistmerger.data.BlocklistEntity
 import de.jonas.dnsblocklistmerger.data.ListStatus
 import de.jonas.dnsblocklistmerger.data.OutputStateEntity
@@ -75,6 +78,8 @@ data class HomeActions(
     val onAddList: (String, () -> Unit) -> Unit = { _, _ -> },
     val onClearAddError: () -> Unit = {},
     val onRemoveList: (Long) -> Unit = {},
+    /** Reports null when the URL was saved, otherwise the error text. */
+    val onEditUrl: (Long, String, (String?) -> Unit) -> Unit = { _, _, _ -> },
     val onChangePriority: (BlocklistEntity, Int) -> Unit = { _, _ -> },
 )
 
@@ -124,7 +129,12 @@ fun HomeScreen(state: HomeUiState, actions: HomeActions, snackbar: SnackbarHostS
                 item { Text("Noch keine Blockliste. Füge unten eine Adresse hinzu.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
             }
             items(state.lists, key = { it.id }) { list ->
-                ListCard(list, onPriority = { actions.onChangePriority(list, it) }, onRemove = { confirmRemove = list })
+                ListCard(
+                    list,
+                    onPriority = { actions.onChangePriority(list, it) },
+                    onEditUrl = { url, done -> actions.onEditUrl(list.id, url, done) },
+                    onRemove = { confirmRemove = list },
+                )
             }
             item { AddListCard(state.addError, actions.onAddList, actions.onClearAddError) }
         }
@@ -241,23 +251,33 @@ private fun DomainsLinkCard(state: HomeUiState, onClick: () -> Unit) {
 }
 
 @Composable
-private fun ListCard(list: BlocklistEntity, onPriority: (Int) -> Unit, onRemove: () -> Unit) {
+private fun ListCard(
+    list: BlocklistEntity,
+    onPriority: (Int) -> Unit,
+    onEditUrl: (String, (String?) -> Unit) -> Unit,
+    onRemove: () -> Unit,
+) {
+    // Collapsed the URL is cut to one line; a tap on name or URL shows it in full.
+    var expanded by rememberSaveable(list.id) { mutableStateOf(false) }
+    var editing by rememberSaveable(list.id) { mutableStateOf(false) }
+    val lines = if (expanded) Int.MAX_VALUE else 1
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text(list.name, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Column(Modifier.weight(1f).clickable(onClickLabel = if (expanded) "URL kürzen" else "Ganze URL zeigen") { expanded = !expanded }) {
+                    Text(list.name, style = MaterialTheme.typography.titleSmall, maxLines = lines, overflow = TextOverflow.Ellipsis)
                     Text(
                         list.url,
                         style = MaterialTheme.typography.bodySmall,
                         fontFamily = FontFamily.Monospace,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
+                        maxLines = lines,
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
                 PriorityStepper(list.priority, onPriority)
             }
+            if (editing) EditUrl(list, onEditUrl, onClose = { editing = false })
             Row(verticalAlignment = Alignment.CenterVertically) {
                 when (list.status) {
                     ListStatus.OK -> Pill("aktuell", PillKind.OK)
@@ -274,7 +294,8 @@ private fun ListCard(list: BlocklistEntity, onPriority: (Int) -> Unit, onRemove:
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f),
                 )
-                TextButton(onClick = onRemove) { Text("Entfernen") }
+                IconButton(onClick = { editing = true }, enabled = !editing) { Icon(Icons.Filled.Edit, contentDescription = "Bearbeiten") }
+                IconButton(onClick = onRemove) { Icon(Icons.Filled.Delete, contentDescription = "Entfernen") }
             }
             list.errorMessage?.let { ErrorBox(it + if (list.lastSuccessAt != null) ". Der letzte gute Stand wird genutzt." else "") }
         }
@@ -311,6 +332,33 @@ fun ErrorBox(text: String) {
 }
 
 @Composable
+private fun EditUrl(list: BlocklistEntity, onSave: (String, (String?) -> Unit) -> Unit, onClose: () -> Unit) {
+    var url by rememberSaveable(list.id) { mutableStateOf(list.url) }
+    var error by remember { mutableStateOf<String?>(null) }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedTextField(
+            value = url,
+            onValueChange = {
+                url = InputText.withoutWhitespace(it)
+                error = null
+            },
+            label = { Text("URL") },
+            isError = error != null,
+            supportingText = { Text(error ?: "Nach dem Speichern wird die Liste neu geladen.") },
+            keyboardOptions = KeyboardOptions(autoCorrectEnabled = false, keyboardType = KeyboardType.Uri, imeAction = ImeAction.Done),
+            textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = { onSave(url) { e -> if (e == null) onClose() else error = e } }, enabled = url.isNotBlank()) {
+                Text("Speichern")
+            }
+            OutlinedButton(onClick = onClose) { Text("Abbrechen") }
+        }
+    }
+}
+
+@Composable
 private fun AddListCard(error: String?, onAdd: (String, () -> Unit) -> Unit, onClearError: () -> Unit) {
     var url by rememberSaveable { mutableStateOf("") }
     Card(Modifier.fillMaxWidth(), colors = CardDefaults.outlinedCardColors()) {
@@ -319,14 +367,14 @@ private fun AddListCard(error: String?, onAdd: (String, () -> Unit) -> Unit, onC
             OutlinedTextField(
                 value = url,
                 onValueChange = {
-                    url = it
+                    url = InputText.withoutWhitespace(it)
                     if (error != null) onClearError()
                 },
                 placeholder = { Text("https://…/blocklist.txt") },
                 singleLine = true,
                 isError = error != null,
                 supportingText = error?.let { { Text(it) } },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Done),
+                keyboardOptions = KeyboardOptions(autoCorrectEnabled = false, keyboardType = KeyboardType.Uri, imeAction = ImeAction.Done),
                 modifier = Modifier.fillMaxWidth(),
             )
             Button(onClick = { onAdd(url) { url = "" } }, enabled = url.isNotBlank()) { Text("Hinzufügen") }
