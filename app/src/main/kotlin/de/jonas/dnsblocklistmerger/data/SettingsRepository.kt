@@ -15,7 +15,7 @@ enum class ThemeMode { SYSTEM, DARK }
 
 data class Settings(
     val theme: ThemeMode = ThemeMode.SYSTEM,
-    val maxKb: Int = MAX_KB,
+    val maxKb: Int = DEFAULT_KB,
     val a: Int = 10,
     val b: Int = 1,
     val omitSubdomains: Boolean = true,
@@ -28,7 +28,13 @@ data class Settings(
 
     companion object {
         const val MIN_KB = 5
-        const val MAX_KB = 4096
+        const val DEFAULT_KB = 4096
+
+        /** Largest file the FRITZ!Box DNS filter takes for sure; larger sizes are allowed, with a warning. */
+        const val FRITZBOX_KB = 4096
+
+        /** Only a technical cap (1 GB): the output is built in memory. */
+        const val MAX_KB = 1_048_576
         const val MIN_WEIGHT = 0
         const val MAX_WEIGHT = 1000
     }

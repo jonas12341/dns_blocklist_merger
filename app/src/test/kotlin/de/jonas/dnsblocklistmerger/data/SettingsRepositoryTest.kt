@@ -58,7 +58,10 @@ class SettingsRepositoryTest {
     fun invalidValuesAreRejected() {
         withRepo(File(tmp.root, "c.preferences_pb")) { repo ->
             assertTrue(runCatching { repo.setMaxKb(4) }.isFailure)
-            assertTrue(runCatching { repo.setMaxKb(4097) }.isFailure)
+            assertTrue(runCatching { repo.setMaxKb(Settings.MAX_KB + 1) }.isFailure)
+            repo.setMaxKb(20_000)
+            assertEquals(20_000, repo.current().maxKb)
+            repo.setMaxKb(4096)
             assertTrue(runCatching { repo.setWeights(-1, 1) }.isFailure)
             assertTrue(runCatching { repo.setDailyRunMinutes(24 * 60) }.isFailure)
             assertEquals(4096, repo.current().maxKb)

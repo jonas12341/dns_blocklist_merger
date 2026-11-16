@@ -12,6 +12,7 @@ import de.jonas.dnsblocklistmerger.data.Settings
 import de.jonas.dnsblocklistmerger.ui.settings.SettingsActions
 import de.jonas.dnsblocklistmerger.ui.settings.SettingsScreen
 import de.jonas.dnsblocklistmerger.ui.settings.parseInRange
+import de.jonas.dnsblocklistmerger.ui.settings.sliderEndFor
 import de.jonas.dnsblocklistmerger.ui.theme.AppTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -37,6 +38,30 @@ class SettingsScreenTest {
     }
 
     @Test
+    fun sizesAbove4096AreAllowedWithAWarning() {
+        var saved: Int? = null
+        compose.setContent {
+            AppTheme(dynamic = false) {
+                SettingsScreen(Settings(), null, SettingsActions(onSaveOutput = { kb, _, _ -> saved = kb }))
+            }
+        }
+        compose.onNode(hasSetTextAction() and hasText("4096")).performTextReplacement("20000")
+        compose.onNodeWithText("Über 4.096 KB nimmt die FRITZ!Box die Datei evtl. nicht an.").assertExists()
+        compose.onNodeWithText("Maximale Größe: 20.000 KB").assertExists()
+        compose.saveScreenshot("settings-large")
+        compose.onNodeWithText("Übernehmen").assertIsEnabled().performClick()
+        assertEquals(20_000, saved)
+    }
+
+    @Test
+    fun sliderEndGrowsInWholeMb() {
+        assertEquals(4096, sliderEndFor(512))
+        assertEquals(4096, sliderEndFor(4096))
+        assertEquals(5120, sliderEndFor(4097))
+        assertEquals(20480, sliderEndFor(20_000))
+    }
+
+    @Test
     fun invalidSizeBlocksSavingValidSizeSaves() {
         var saved: Triple<Int, Int, Int>? = null
         compose.setContent {
@@ -46,10 +71,10 @@ class SettingsScreenTest {
         }
         compose.saveScreenshot("settings")
         val kbField = hasSetTextAction() and hasText("4096")
-        compose.onNode(kbField).performTextReplacement("9999")
+        compose.onNode(kbField).performTextReplacement("4")
         compose.onNodeWithText("Übernehmen").assertIsNotEnabled()
-        compose.onNodeWithText("5 bis 4096 KB").assertExists()
-        compose.onNode(hasSetTextAction() and hasText("9999")).performTextReplacement("512")
+        compose.onNodeWithText("5 bis 1.048.576 KB").assertExists()
+        compose.onNode(hasSetTextAction() and hasText("4")).performTextReplacement("512")
         compose.onNodeWithText("Übernehmen").assertIsEnabled().performClick()
         assertEquals(Triple(512, 10, 1), saved)
     }

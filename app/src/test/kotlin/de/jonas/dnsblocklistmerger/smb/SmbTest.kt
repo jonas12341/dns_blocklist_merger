@@ -126,12 +126,11 @@ class SmbTest {
     }
 
     @Test
-    fun writerRefusesFilesOver4MbAndMissingCredentials() = runBlocking {
+    fun writerTakesFilesOver4MbButRefusesMissingCredentials() = runBlocking {
         val files = FakeFiles()
         val writer = SmbWriter(files)
-        val tooBig = runCatching { writer.write(path, creds, ByteArray(SmbWriter.MAX_FILE_BYTES + 1)) }.exceptionOrNull()
-        assertTrue(tooBig is SmbWriteException && tooBig.message!!.contains("4 MB"))
-        writer.write(path, creds, ByteArray(SmbWriter.MAX_FILE_BYTES))
+        // The size limit is the user's setting (Selection), not the writer's.
+        writer.write(path, creds, ByteArray(5 * 1024 * 1024))
         val noPassword = runCatching { writer.write(path, SmbCredentials("jonas", ""), ByteArray(1)) }.exceptionOrNull()
         assertTrue(noPassword is SmbWriteException)
         assertEquals(1, files.writes.size)

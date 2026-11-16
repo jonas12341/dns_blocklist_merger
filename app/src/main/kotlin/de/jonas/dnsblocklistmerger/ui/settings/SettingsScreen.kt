@@ -63,6 +63,9 @@ data class SettingsActions(
 )
 
 /** Parses a whole number in [range], or null for anything else. */
+/** Slider end for [kb]: at least 4096 KB, otherwise [kb] rounded up to whole MB. */
+fun sliderEndFor(kb: Int): Int = maxOf(Settings.FRITZBOX_KB, (kb + 1023) / 1024 * 1024)
+
 fun parseInRange(text: String, range: IntRange): Int? = text.trim().toIntOrNull()?.takeIf { it in range }
 
 @Composable
@@ -131,18 +134,32 @@ private fun OutputCard(settings: Settings, actions: SettingsActions) = SectionCa
     val aValue = parseInRange(a, weightRange)
     val bValue = parseInRange(b, weightRange)
 
+    // The slider ends at 4096 KB or at the largest size typed so far; typing a larger value widens it.
+    var sliderEnd by rememberSaveable(settings.maxKb) { mutableStateOf(sliderEndFor(settings.maxKb)) }
+
     Text("Maximale Größe: ${kbValue?.let { formatNumber(it) + " KB" } ?: "–"}", fontWeight = FontWeight.Medium)
     Slider(
-        value = (kbValue ?: settings.maxKb).toFloat(),
+        value = (kbValue ?: settings.maxKb).coerceAtMost(sliderEnd).toFloat(),
         onValueChange = { maxKb = it.roundToInt().toString() },
-        valueRange = Settings.MIN_KB.toFloat()..Settings.MAX_KB.toFloat(),
+        valueRange = Settings.MIN_KB.toFloat()..sliderEnd.toFloat(),
     )
     OutlinedTextField(
         value = maxKb,
-        onValueChange = { maxKb = it.filter(Char::isDigit).take(5) },
+        onValueChange = {
+            maxKb = it.filter(Char::isDigit).take(7)
+            parseInRange(maxKb, kbRange)?.let { kb -> sliderEnd = maxOf(sliderEnd, sliderEndFor(kb)) }
+        },
         label = { Text("KB") },
         isError = kbValue == null,
-        supportingText = { Text(if (kbValue == null) "5 bis 4096 KB" else "FRITZ!Box: höchstens 4096 KB") },
+        supportingText = {
+            Text(
+                when {
+                    kbValue == null -> "${formatNumber(Settings.MIN_KB)} bis ${formatNumber(Settings.MAX_KB)} KB"
+                    kbValue > Settings.FRITZBOX_KB -> "Über ${formatNumber(Settings.FRITZBOX_KB)} KB nimmt die FRITZ!Box die Datei evtl. nicht an."
+                    else -> "Größer? Wert hier eintippen, der Regler passt sich an."
+                },
+            )
+        },
         singleLine = true,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
         modifier = Modifier.fillMaxWidth(),

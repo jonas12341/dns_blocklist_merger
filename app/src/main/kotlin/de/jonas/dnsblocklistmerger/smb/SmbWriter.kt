@@ -37,9 +37,6 @@ interface SmbFiles {
 class SmbWriter(private val files: SmbFiles = SmbjFiles()) {
 
     suspend fun write(path: String, credentials: SmbCredentials, content: ByteArray) = withContext(Dispatchers.IO) {
-        if (content.size > MAX_FILE_BYTES) {
-            throw SmbWriteException("Die Datei ist größer als 4 MB (${content.size / 1024} KB). Die FRITZ!Box nimmt sie nicht an.")
-        }
         val target = parse(path)
         checkCredentials(credentials)
         translating { files.replaceFile(target, credentials, "${target.fileName}.tmp", content) }
@@ -72,7 +69,6 @@ class SmbWriter(private val files: SmbFiles = SmbjFiles()) {
     }
 
     companion object {
-        const val MAX_FILE_BYTES = 4 * 1024 * 1024
 
         /** Maps SMB and network errors to a German message; looks through the cause chain. */
         fun messageFor(error: Throwable): String {
