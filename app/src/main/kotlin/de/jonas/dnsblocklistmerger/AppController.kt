@@ -1,0 +1,99 @@
+package de.jonas.dnsblocklistmerger
+
+import de.jonas.dnsblocklistmerger.data.BlocklistRepository
+import de.jonas.dnsblocklistmerger.data.SettingsRepository
+import de.jonas.dnsblocklistmerger.work.UpdateFlow
+import de.jonas.dnsblocklistmerger.smb.SmbWriteException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+
+/**
+ * Runs the long jobs (refresh, recompute, writing the file) one at a time in an
+ * app-wide scope, so they survive leaving a screen. UI reports go to [messages].
+ */
+class AppController(
+    private val lists: BlocklistRepository,
+    private val settings: SettingsRepository,
+    private val publisher: OutputPublisher,
+    private val update: suspend () -> UpdateFlow.Report,
+    private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
+) {
+    private val mutex = Mutex()
+    private val _busy = MutableStateFlow<String?>(null)
+
+    /** Short text of the running job, null when idle. */
+    val busy: StateFlow<String?> = _busy
+
+    private val _messages = MutableSharedFlow<String>(extraBufferCapacity = 8)
+    val messages: SharedFlow<String> = _messages
+
+    fun message(text: String) {
+        _messages.tryEmit(text)
+    }
+
+    /** Runs [block] after any job that is already running. */
+    fun launchJob(label: String, block: suspend () -> Unit) {
+        scope.launch {
+            mutex.withLock {
+                _busy.value = label
+                try {
+                    block()
+                } catch (e: Exception) {
+                    message("Fehler: ${e.message ?: e.javaClass.simpleName}")
+                } finally {
+                    _busy.value = null
+                }
+            }
+        }
+    }
+
+    /** Same flow as the daily run: load, recompute, write to the FRITZ!Box when a path is set. */
+    fun refresh() = launchJob("Listen werden geladen …") {
+        val r = update()
+        val parts = mutableListOf("${r.entries} Einträge")
+        if (r.failedLists > 0) parts += "${r.failedLists} Liste(n) mit Fehler"
+        when {
+            r.written -> parts += "auf FRITZ!Box geschrieben"
+            r.writeError != null -> parts += "Schreiben fehlgeschlagen: ${r.writeError}"
+        }
+        message("Aktualisiert: " + parts.joinToString(" · "))
+    }
+
+    fun recompute() = launchJob("Ausgabe wird berechnet …") {
+        lists.recompute(settings.current())
+    }
+
+    fun writeToFritzBox() = launchJob("Datei wird auf die FRITZ!Box geschrieben …") {
+        try {
+            val bytes = publisher.publish()
+            message("Auf FRITZ!Box geschrieben (${bytes / 1024} KB)")
+        } catch (e: SmbWriteException) {
+            message(e.message ?: "Schreiben fehlgeschlagen")
+        }
+    }
+
+    fun testConnection(path: String, user: String, password: String?) = launchJob("Verbindung wird getestet …") {
+        try {
+            publisher.test(path, user, password)
+            message("Verbindung in Ordnung: Anmeldung und Schreibrecht")
+        } catch (e: SmbWriteException) {
+            message(e.message ?: "Verbindung fehlgeschlagen")
+        }
+    }
+
+    /** Writes the same content as the FRITZ!Box path to a file the user picked (Storage Access Framework). */
+    fun saveAs(target: String, open: (String) -> java.io.OutputStream?) = launchJob("Datei wird gespeichert …") {
+        val content = lists.renderOutput().toByteArray(Charsets.US_ASCII)
+        val out = open(target) ?: throw java.io.IOException("Datei lässt sich nicht öffnen")
+        out.use { it.write(content) }
+        message("Gespeichert (${content.size / 1024} KB)")
+    }
+}
