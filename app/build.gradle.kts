@@ -13,12 +13,28 @@ android {
         minSdk = 36
         targetSdk = 37
         versionCode = 1
-        versionName = "0.1.0"
+        versionName = "1.0.0"
+    }
+
+    // Release key lives outside the repo; path and passwords come from ~/.gradle/gradle.properties or the environment.
+    fun secret(name: String): String? = (findProperty(name) as String?) ?: System.getenv(name)
+    val releaseStore = secret("DNSBM_RELEASE_STORE_FILE")
+
+    signingConfigs {
+        if (releaseStore != null) {
+            create("release") {
+                storeFile = file(releaseStore)
+                storePassword = secret("DNSBM_RELEASE_STORE_PASSWORD")
+                keyAlias = secret("DNSBM_RELEASE_KEY_ALIAS")
+                keyPassword = secret("DNSBM_RELEASE_KEY_PASSWORD")
+            }
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.findByName("release")
         }
     }
     compileOptions {

@@ -4,7 +4,7 @@ Current-state map for coding agents. Keep it a snapshot: edit entries, do not ap
 
 ## Build
 
-JDK 21 (Robolectric for SDK 36 needs it), Android SDK platform 37. `./gradlew assembleDebug test`. No device here: unit tests only, Jonas tests on his phone.
+JDK 21 (Robolectric for SDK 36 needs it), Android SDK platform 37. `./gradlew assembleDebug test`. No device here: unit tests only, Jonas tests on his phone. Release signing: `signingConfigs.release` reads `DNSBM_RELEASE_*` from `~/.gradle/gradle.properties` or env (key `~/.config/dns_blocklist_merger/release.jks` on Jonas's machine, never in the repo); without them the release build is unsigned.
 
 ## Modules
 
