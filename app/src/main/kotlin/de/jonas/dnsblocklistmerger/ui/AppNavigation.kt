@@ -90,7 +90,7 @@ fun AppNavigation(container: AppContainer) {
             )
         }
         composable(Routes.SETTINGS) {
-            val vm = viewModel { SettingsViewModel(container.settings, container.passwords, container.controller) }
+            val vm = viewModel { SettingsViewModel(container.settings, container.passwords, container.controller) { container.scheduleDaily(replace = true) } }
             val settings by vm.settings.collectAsStateWithLifecycle()
             val busy by vm.busy.collectAsStateWithLifecycle()
             val passwordSet by vm.passwordSet.collectAsStateWithLifecycle()

@@ -2,7 +2,7 @@ package de.jonas.dnsblocklistmerger
 
 import de.jonas.dnsblocklistmerger.data.BlocklistRepository
 import de.jonas.dnsblocklistmerger.data.SettingsRepository
-import de.jonas.dnsblocklistmerger.download.Refresher
+import de.jonas.dnsblocklistmerger.work.UpdateFlow
 import de.jonas.dnsblocklistmerger.smb.SmbWriteException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -22,8 +22,8 @@ import kotlinx.coroutines.sync.withLock
 class AppController(
     private val lists: BlocklistRepository,
     private val settings: SettingsRepository,
-    private val refresher: Refresher,
     private val publisher: OutputPublisher,
+    private val update: suspend () -> UpdateFlow.Report,
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
 ) {
     private val mutex = Mutex()
@@ -55,15 +55,16 @@ class AppController(
         }
     }
 
+    /** Same flow as the daily run: load, recompute, write to the FRITZ!Box when a path is set. */
     fun refresh() = launchJob("Listen werden geladen …") {
-        val summary = refresher.refreshAll()
-        message(
-            if (summary.failed == 0) {
-                "Aktualisiert: ${summary.result.entries.size} Einträge"
-            } else {
-                "${summary.failed} Liste(n) konnten nicht geladen werden"
-            },
-        )
+        val r = update()
+        val parts = mutableListOf("${r.entries} Einträge")
+        if (r.failedLists > 0) parts += "${r.failedLists} Liste(n) mit Fehler"
+        when {
+            r.written -> parts += "auf FRITZ!Box geschrieben"
+            r.writeError != null -> parts += "Schreiben fehlgeschlagen: ${r.writeError}"
+        }
+        message("Aktualisiert: " + parts.joinToString(" · "))
     }
 
     fun recompute() = launchJob("Ausgabe wird berechnet …") {

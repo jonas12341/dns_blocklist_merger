@@ -9,8 +9,6 @@ import de.jonas.dnsblocklistmerger.data.BlocklistRepository
 import de.jonas.dnsblocklistmerger.data.DomainFileStore
 import de.jonas.dnsblocklistmerger.data.Settings
 import de.jonas.dnsblocklistmerger.data.SettingsRepository
-import de.jonas.dnsblocklistmerger.download.BlocklistDownloader
-import de.jonas.dnsblocklistmerger.download.Refresher
 import de.jonas.dnsblocklistmerger.smb.AesGcmCipher
 import de.jonas.dnsblocklistmerger.smb.PasswordStore
 import de.jonas.dnsblocklistmerger.smb.SmbWriter
@@ -49,7 +47,7 @@ class SaveAsTest {
             val repo = BlocklistRepository(db, DomainFileStore(tmp.newFolder("lists")))
             val key = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
             val publisher = OutputPublisher(repo, settings, PasswordStore(store, AesGcmCipher { key }), SmbWriter())
-            val controller = AppController(repo, settings, Refresher(repo, settings, BlocklistDownloader()), publisher, scope)
+            val controller = AppController(repo, settings, publisher, { error("not used") }, scope)
 
             val id = repo.addList("https://one.example/list")
             repo.recordSuccess(id, BlocklistParser.parse("||b.example^\n||a.example^"), null, null)

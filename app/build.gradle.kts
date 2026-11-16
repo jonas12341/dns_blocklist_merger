@@ -61,6 +61,7 @@ dependencies {
     implementation(libs.coroutines.core)
     implementation(libs.okhttp)
     implementation(libs.smbj)
+    implementation(libs.work.runtime.ktx)
 
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
@@ -68,6 +69,7 @@ dependencies {
     testImplementation(libs.coroutines.test)
     testImplementation(libs.room.testing)
     testImplementation(libs.okhttp.mockwebserver)
+    testImplementation(libs.work.testing)
     testImplementation(platform(libs.compose.bom))
     testImplementation(libs.compose.ui.test.junit4)
 }

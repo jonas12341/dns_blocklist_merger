@@ -12,6 +12,15 @@ import de.jonas.dnsblocklistmerger.download.Refresher
 import de.jonas.dnsblocklistmerger.smb.AesGcmCipher
 import de.jonas.dnsblocklistmerger.smb.PasswordStore
 import de.jonas.dnsblocklistmerger.smb.SmbWriter
+import androidx.work.Configuration
+import androidx.work.WorkManager
+import de.jonas.dnsblocklistmerger.work.AppWorkerFactory
+import de.jonas.dnsblocklistmerger.work.DailyScheduler
+import de.jonas.dnsblocklistmerger.work.UpdateFlow
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import java.io.File
 
 private val Context.settingsStore by preferencesDataStore(name = "settings")
@@ -25,17 +34,30 @@ class AppContainer(context: Context) {
     val refresher = Refresher(blocklists, settings, BlocklistDownloader())
     val passwords = PasswordStore(appContext.settingsStore, AesGcmCipher(AesGcmCipher::androidKeystoreKey))
     val publisher = OutputPublisher(blocklists, settings, passwords, SmbWriter())
-    val controller = AppController(blocklists, settings, refresher, publisher)
+    val updateFlow = UpdateFlow(refresher, settings, publisher)
+    val controller = AppController(blocklists, settings, publisher, updateFlow::run)
+
+    fun scheduleDaily(replace: Boolean) {
+        appScope.launch {
+            DailyScheduler.schedule(WorkManager.getInstance(appContext), settings.current().dailyRunMinutes, replace)
+        }
+    }
+
+    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 }
 
-class App : Application() {
+class App : Application(), Configuration.Provider {
     lateinit var container: AppContainer
         private set
 
     override fun onCreate() {
         super.onCreate()
         container = AppContainer(this)
+        container.scheduleDaily(replace = false)
     }
+
+    override val workManagerConfiguration: Configuration
+        get() = Configuration.Builder().setWorkerFactory(AppWorkerFactory { container.updateFlow.run() }).build()
 }
 
 val Context.container: AppContainer get() = (applicationContext as App).container
