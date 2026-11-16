@@ -55,6 +55,15 @@ class HomeScreenTest {
     }
 
     @Test
+    fun highestPriorityOverTheLimitShowsAHintNotAnError() {
+        val over = output.copy(bytes = 4_190_000, requiredBytes = 5_400_000, cutByLimit = 90_000)
+        compose.setContent { AppTheme(dynamic = false) { HomeScreen(HomeUiState(lists.take(1), over), HomeActions()) } }
+        compose.onNodeWithText("P1 gekürzt").assertIsDisplayed()
+        compose.onNodeWithText("P1 allein", substring = true).assertIsDisplayed()
+        compose.onAllNodesWithText("Fehler").assertCountEquals(0)
+    }
+
+    @Test
     fun emptyAppShowsHint() {
         compose.setContent { AppTheme(dynamic = false) { HomeScreen(HomeUiState(), HomeActions()) } }
         compose.onNodeWithText("Noch keine Blockliste. Füge unten eine Adresse hinzu.").assertIsDisplayed()

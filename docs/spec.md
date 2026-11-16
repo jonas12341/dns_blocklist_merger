@@ -33,7 +33,7 @@ Zielgerät: FRITZ!Box 7530 AX mit FRITZ!OS 8.50.
 
 ### A5 Auswahl der Einträge für die Ausgabedatei
 - Aus der Priorität der Blocklisten und der Häufigkeit einer Domain über alle Blocklisten hinweg wird ein Rang berechnet.
-- Einträge aus Blocklisten der höchsten Priorität werden immer geschrieben.
+- Einträge aus Blocklisten der höchsten Priorität werden immer geschrieben. Ausnahme: Sind sie allein schon größer als die maximale Größe, werden auch sie nur nach Rang bis zur maximalen Größe aufgenommen; die Startseite zeigt dazu einen Hinweis an der Ausgabedatei (Jonas 2026-11-16, #15).
 - Ist die maximale Größe danach noch nicht erreicht, werden weitere Einträge nach Rang (bester zuerst) aufgenommen, bis die maximale Größe erreicht ist.
 - Ausgeschlossene Domains und Ausnahmen (A3) werden nie geschrieben.
 - Standardformel: `Rang = a × Prioritätswert + b × Häufigkeit`. Startwerte `a = 10`, `b = 1`, beide in den Settings einstellbar.

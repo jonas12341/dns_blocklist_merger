@@ -11,7 +11,7 @@ data class SelectionSettings(
 )
 
 enum class DomainStatus {
-    /** From a list with the highest priority: always written. */
+    /** From a list with the highest priority: written first, by rank only if they alone exceed the limit. */
     REQUIRED,
 
     /** Written because it fitted by rank. */
@@ -39,6 +39,7 @@ data class SelectionResult(
     /** Domains written to the output file, sorted ascending (0-9 before a-z). */
     val entries: List<String>,
     val bytes: Long,
+    /** Size of all highest-priority domains; above [maxBytes] they were cut by rank too. */
     val requiredBytes: Long,
     val maxBytes: Long,
     val topPriority: Int?,
@@ -58,8 +59,9 @@ data class SelectionResult(
  *
  * Rank = a × priority value + b × frequency. The priority value is largest for the
  * highest priority: lowest priority number p_max gets 1, priority p gets p_max - p + 1.
- * Domains from lists with the highest priority are always written, even beyond the
- * limit. The rest is added by rank (best first, ties by name) while it fits.
+ * Domains from lists with the highest priority are always written. Only when they alone
+ * exceed the limit are they filled by rank as well, up to the limit. The rest is added
+ * by rank (best first, ties by name) while it fits.
  */
 object Selection {
     fun line(domain: String) = "||$domain^\n"
@@ -95,12 +97,18 @@ object Selection {
         }
         // Parents before children inside the required set, so pruning needs no undo there.
         required.sortWith(compareBy<String> { it.count { c -> c == '.' } }.thenBy { it })
-        rest.sortWith(compareByDescending<String> { rank(agg.getValue(it)) }.thenBy { it })
+        val byRank = compareByDescending<String> { rank(agg.getValue(it)) }.thenBy { it }
+        rest.sortWith(byRank)
 
-        val picker = Picker(settings.omitSubdomains)
+        var picker = Picker(settings.omitSubdomains)
         for (domain in required) picker.add(domain, Long.MAX_VALUE)
         val requiredBytes = picker.bytes
-        var skipped = rest
+        var skipped: List<String> = rest
+        if (requiredBytes > settings.maxBytes) {
+            // The highest priority alone does not fit: fill it by rank like the rest (#15).
+            picker = Picker(settings.omitSubdomains)
+            skipped = required.sortedWith(byRank) + rest
+        }
         // Removing children of a newly added parent frees bytes, so retry skipped domains until stable.
         while (true) {
             val next = ArrayList<String>()

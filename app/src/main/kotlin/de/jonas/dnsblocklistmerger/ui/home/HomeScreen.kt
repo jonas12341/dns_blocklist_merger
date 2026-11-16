@@ -165,19 +165,27 @@ private fun OutputCard(state: HomeUiState, actions: HomeActions) {
                 Text("Ausgabedatei", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                 when {
                     out?.computedAt == null -> Pill("noch nicht berechnet", PillKind.NEUTRAL)
-                    out.requiredBytes > limit -> Pill("P${out.topPriority} allein über Limit", PillKind.ERROR)
+                    out.requiredBytes > limit -> Pill("P${out.topPriority} gekürzt", PillKind.WARN)
                     out.cutByLimit > 0 -> Pill("gekürzt", PillKind.WARN)
                     else -> Pill("vollständig", PillKind.OK)
                 }
             }
             val bytes = out?.bytes ?: 0
-            UsageMeter(required = out?.requiredBytes ?: 0, total = bytes, limit = limit)
+            UsageMeter(required = minOf(out?.requiredBytes ?: 0, bytes), total = bytes, limit = limit)
             Text(
                 "${formatKb(bytes)} von ${formatNumber(state.settings.maxKb)} KB · dunkel: Pflicht" +
                     (out?.topPriority?.let { " (P$it)" } ?: "") + ", hell: nach Rang aufgefüllt",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            if (out?.computedAt != null && out.requiredBytes > limit) {
+                Text(
+                    "P${out.topPriority} allein hat ${formatKb(out.requiredBytes)} und passt nicht ins Limit. " +
+                        "Auch P${out.topPriority} wird darum nach Rang bis zur maximalen Größe aufgefüllt.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Stat(formatNumber(out?.entries ?: 0), "Einträge", Modifier.weight(1f))
                 Stat(formatNumber(out?.cutByLimit ?: 0), "wegen Limit raus", Modifier.weight(1f))

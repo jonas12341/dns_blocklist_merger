@@ -26,17 +26,40 @@ class SelectionTest {
     }
 
     @Test
-    fun requiredEntriesAreWrittenEvenWhenAloneOverTheLimit() {
+    fun requiredEntriesAloneOverTheLimitAreFilledByRank() {
+        // b.example is in two lists, so it ranks above a.example; only one of them fits.
         val result = Selection.compute(
-            listOf(SourceList(1, listOf("a.example", "b.example")), SourceList(2, listOf("c.example"))),
+            listOf(
+                SourceList(1, listOf("a.example", "b.example")),
+                SourceList(1, listOf("b.example")),
+                SourceList(2, listOf("c.example")),
+            ),
             emptySet(),
-            settings(maxBytes = 5),
+            settings(maxBytes = bytes("b.example") + 2),
         )
-        assertEquals(listOf("a.example", "b.example"), result.entries)
-        assertEquals(bytes("a.example", "b.example"), result.bytes)
-        assertEquals(result.bytes, result.requiredBytes)
-        assertEquals(1, result.cutByLimit)
+        assertEquals(listOf("b.example"), result.entries)
+        assertEquals(bytes("b.example"), result.bytes)
+        assertEquals(bytes("a.example", "b.example"), result.requiredBytes)
+        assertEquals(2, result.cutByLimit)
+        assertEquals(DomainStatus.REQUIRED, result.status("b.example"))
+        assertEquals(DomainStatus.CUT_BY_LIMIT, result.status("a.example"))
         assertEquals(DomainStatus.CUT_BY_LIMIT, result.status("c.example"))
+    }
+
+    @Test
+    fun requiredEntriesOverTheLimitStillPruneSubdomains() {
+        // ads.example.com ranks first but example.com replaces it once it is added.
+        val result = Selection.compute(
+            listOf(
+                SourceList(1, listOf("ads.example.com", "example.com", "zz.example")),
+                SourceList(1, listOf("ads.example.com")),
+            ),
+            emptySet(),
+            settings(maxBytes = bytes("ads.example.com") + 1),
+        )
+        assertEquals(listOf("example.com"), result.entries)
+        assertEquals(DomainStatus.SUBDOMAIN, result.status("ads.example.com"))
+        assertEquals(DomainStatus.CUT_BY_LIMIT, result.status("zz.example"))
     }
 
     @Test
@@ -104,7 +127,7 @@ class SelectionTest {
         val result = Selection.compute(
             listOf(SourceList(1, listOf("a.example")), SourceList(1, listOf("b.example")), SourceList(2, listOf("c.example"))),
             emptySet(),
-            settings(maxBytes = 1),
+            settings(maxBytes = bytes("a.example", "b.example")),
         )
         assertEquals(listOf("a.example", "b.example"), result.entries)
         assertEquals(DomainStatus.REQUIRED, result.status("a.example"))
@@ -116,7 +139,7 @@ class SelectionTest {
         val result = Selection.compute(
             listOf(SourceList(1, emptyList()), SourceList(2, listOf("a.example"))),
             emptySet(),
-            settings(maxBytes = 1),
+            settings(maxBytes = bytes("a.example")),
         )
         assertEquals(2, result.topPriority)
         assertEquals(listOf("a.example"), result.entries)
