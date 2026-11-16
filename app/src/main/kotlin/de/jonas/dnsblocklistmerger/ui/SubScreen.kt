@@ -1,9 +1,6 @@
 package de.jonas.dnsblocklistmerger.ui
 
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -16,7 +13,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Modifier
 
 /** Scaffold with a back arrow for the pages opened from the start page. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -39,11 +35,4 @@ fun SubScreen(
         snackbarHost = { SnackbarHost(snackbar) },
         content = content,
     )
-}
-
-@Composable
-fun PlaceholderScreen(title: String, onBack: () -> Unit) {
-    SubScreen(title, onBack) { padding ->
-        Box(Modifier.fillMaxSize().padding(padding)) { Text("Folgt.") }
-    }
 }

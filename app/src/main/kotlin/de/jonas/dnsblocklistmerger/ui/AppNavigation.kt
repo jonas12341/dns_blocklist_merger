@@ -18,6 +18,9 @@ import de.jonas.dnsblocklistmerger.ui.domains.DomainsViewModel
 import de.jonas.dnsblocklistmerger.ui.home.HomeActions
 import de.jonas.dnsblocklistmerger.ui.home.HomeScreen
 import de.jonas.dnsblocklistmerger.ui.home.HomeViewModel
+import de.jonas.dnsblocklistmerger.ui.settings.SettingsActions
+import de.jonas.dnsblocklistmerger.ui.settings.SettingsScreen
+import de.jonas.dnsblocklistmerger.ui.settings.SettingsViewModel
 
 object Routes {
     const val HOME = "home"
@@ -75,7 +78,23 @@ fun AppNavigation(container: AppContainer) {
             )
         }
         composable(Routes.SETTINGS) {
-            PlaceholderScreen("Einstellungen") { nav.popBackStack() }
+            val vm = viewModel { SettingsViewModel(container.settings, container.controller) }
+            val settings by vm.settings.collectAsStateWithLifecycle()
+            val busy by vm.busy.collectAsStateWithLifecycle()
+            SettingsScreen(
+                settings = settings,
+                busy = busy,
+                snackbar = snackbar,
+                actions = SettingsActions(
+                    onBack = { nav.popBackStack() },
+                    onTheme = vm::setTheme,
+                    onSaveOutput = vm::saveOutput,
+                    onOmitSubdomains = vm::setOmitSubdomains,
+                    onDailyRunMinutes = vm::setDailyRunMinutes,
+                    onRefreshNow = vm::refreshNow,
+                    onSaveSmb = vm::saveSmbTarget,
+                ),
+            )
         }
     }
 }
