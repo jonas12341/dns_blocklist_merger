@@ -39,7 +39,7 @@ data class ExceptionEntity(
 /** Result of the last selection per domain; feeds the domain page and the output file. */
 @Entity(
     tableName = "output_domain",
-    indices = [Index("rank"), Index("status")],
+    indices = [Index(value = ["rank", "domain"]), Index("status")],
 )
 data class OutputDomainEntity(
     @PrimaryKey val domain: String,

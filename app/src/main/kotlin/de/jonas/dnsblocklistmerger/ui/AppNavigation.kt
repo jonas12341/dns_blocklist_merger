@@ -10,7 +10,11 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.paging.compose.collectAsLazyPagingItems
 import de.jonas.dnsblocklistmerger.AppContainer
+import de.jonas.dnsblocklistmerger.ui.domains.DomainsActions
+import de.jonas.dnsblocklistmerger.ui.domains.DomainsScreen
+import de.jonas.dnsblocklistmerger.ui.domains.DomainsViewModel
 import de.jonas.dnsblocklistmerger.ui.home.HomeActions
 import de.jonas.dnsblocklistmerger.ui.home.HomeScreen
 import de.jonas.dnsblocklistmerger.ui.home.HomeViewModel
@@ -47,7 +51,28 @@ fun AppNavigation(container: AppContainer) {
             )
         }
         composable(Routes.DOMAINS) {
-            PlaceholderScreen("Domains & Ausnahmen") { nav.popBackStack() }
+            val vm = viewModel { DomainsViewModel(container.blocklists, container.controller) }
+            val query by vm.query.collectAsStateWithLifecycle()
+            val total by vm.totalDomains.collectAsStateWithLifecycle()
+            val exceptions by vm.exceptions.collectAsStateWithLifecycle()
+            val exceptionDomains by vm.exceptionDomains.collectAsStateWithLifecycle()
+            val busy by vm.busy.collectAsStateWithLifecycle()
+            DomainsScreen(
+                query = query,
+                totalDomains = total,
+                exceptions = exceptions,
+                exceptionDomains = exceptionDomains,
+                domains = vm.domains.collectAsLazyPagingItems(),
+                busy = busy,
+                snackbar = snackbar,
+                actions = DomainsActions(
+                    onBack = { nav.popBackStack() },
+                    onQuery = vm::setQuery,
+                    onExclude = vm::exclude,
+                    onAllow = vm::allow,
+                    onAddException = vm::addException,
+                ),
+            )
         }
         composable(Routes.SETTINGS) {
             PlaceholderScreen("Einstellungen") { nav.popBackStack() }
