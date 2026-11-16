@@ -53,10 +53,12 @@ dependencies {
     implementation(libs.datastore.preferences)
     implementation(libs.paging.runtime)
     implementation(libs.coroutines.core)
+    implementation(libs.okhttp)
 
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core)
     testImplementation(libs.coroutines.test)
     testImplementation(libs.room.testing)
+    testImplementation(libs.okhttp.mockwebserver)
 }

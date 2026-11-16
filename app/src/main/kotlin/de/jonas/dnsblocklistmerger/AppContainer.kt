@@ -7,6 +7,8 @@ import de.jonas.dnsblocklistmerger.data.AppDatabase
 import de.jonas.dnsblocklistmerger.data.BlocklistRepository
 import de.jonas.dnsblocklistmerger.data.DomainFileStore
 import de.jonas.dnsblocklistmerger.data.SettingsRepository
+import de.jonas.dnsblocklistmerger.download.BlocklistDownloader
+import de.jonas.dnsblocklistmerger.download.Refresher
 import java.io.File
 
 private val Context.settingsStore by preferencesDataStore(name = "settings")
@@ -17,6 +19,7 @@ class AppContainer(context: Context) {
     val database: AppDatabase = AppDatabase.create(appContext)
     val settings = SettingsRepository(appContext.settingsStore)
     val blocklists = BlocklistRepository(database, DomainFileStore(File(appContext.filesDir, "lists")))
+    val refresher = Refresher(blocklists, settings, BlocklistDownloader())
 }
 
 class App : Application() {
