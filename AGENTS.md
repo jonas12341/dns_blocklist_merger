@@ -15,7 +15,9 @@ JDK 21 (Robolectric for SDK 36 needs it), Android SDK platform 37. `./gradlew as
   - `App` / `AppContainer`: manual wiring of database, settings and repositories (`context.container`).
   - `data/`: Room `AppDatabase` (tables `blocklist`, `exception`, `output_domain`, `output_state`; schema JSON in `app/schemas/`). The domains of each list's last good download are files in `filesDir/lists/<id>.txt` (`DomainFileStore`), not table rows. `BlocklistRepository`: list CRUD and download status, exceptions, `recompute(settings)` (runs `Selection`, stores per-domain rows and the output numbers), `renderOutput()`, paging of domains. `SettingsRepository`: DataStore settings with spec defaults and range checks; no password there.
   - `download/`: `BlocklistDownloader` (OkHttp, conditional GET with ETag/If-Modified-Since, streams into the parser, German error texts; empty body or no domains count as errors). `Refresher.refreshAll()` downloads every list, records success/304/error at the list (errors keep the last good domains) and recomputes the output.
-  - `ui/theme/AppTheme`.
+  - `AppController`: app-wide scope, runs refresh/recompute/write jobs one at a time (`busy` text, snackbar `messages`).
+  - `ui/`: `AppNavigation` (routes home, domains, settings; ViewModels built with `viewModel { }` from the container), `SubScreen` (back-arrow scaffold), `Format.kt` (German number/date formats). `ui/home/`: start page after concept B (output card with usage meter, domains link, lists by priority with −/+ stepper, error box only at the list, add/remove list). `ui/theme/`: `AppTheme` (dynamic colours, `dynamic = false` for previews/tests), `Pill`.
+- UI tests: Robolectric + Compose test rule with `@GraphicsMode(NATIVE)`; `saveScreenshot(name)` writes `app/build/screenshots/<name>.png` for a look by eye.
 - Tests: `core` with plain JUnit; `app` with Robolectric (`@Config(sdk = [36])`, in-memory Room).
 
 ## Spec and tickets

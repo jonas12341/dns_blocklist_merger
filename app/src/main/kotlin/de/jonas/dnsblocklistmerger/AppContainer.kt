@@ -20,6 +20,7 @@ class AppContainer(context: Context) {
     val settings = SettingsRepository(appContext.settingsStore)
     val blocklists = BlocklistRepository(database, DomainFileStore(File(appContext.filesDir, "lists")))
     val refresher = Refresher(blocklists, settings, BlocklistDownloader())
+    val controller = AppController(blocklists, settings, refresher)
 }
 
 class App : Application() {
