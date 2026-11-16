@@ -12,8 +12,8 @@ android {
         applicationId = "de.jonas.dnsblocklistmerger"
         minSdk = 36
         targetSdk = 37
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "1.1.0"
     }
 
     // Release key lives outside the repo; path and passwords come from ~/.gradle/gradle.properties or the environment.
