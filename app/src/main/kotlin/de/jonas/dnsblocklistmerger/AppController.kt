@@ -3,6 +3,7 @@ package de.jonas.dnsblocklistmerger
 import de.jonas.dnsblocklistmerger.data.BlocklistRepository
 import de.jonas.dnsblocklistmerger.data.SettingsRepository
 import de.jonas.dnsblocklistmerger.download.Refresher
+import de.jonas.dnsblocklistmerger.smb.SmbWriteException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -22,6 +23,7 @@ class AppController(
     private val lists: BlocklistRepository,
     private val settings: SettingsRepository,
     private val refresher: Refresher,
+    private val publisher: OutputPublisher,
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
 ) {
     private val mutex = Mutex()
@@ -66,5 +68,23 @@ class AppController(
 
     fun recompute() = launchJob("Ausgabe wird berechnet …") {
         lists.recompute(settings.current())
+    }
+
+    fun writeToFritzBox() = launchJob("Datei wird auf die FRITZ!Box geschrieben …") {
+        try {
+            val bytes = publisher.publish()
+            message("Auf FRITZ!Box geschrieben (${bytes / 1024} KB)")
+        } catch (e: SmbWriteException) {
+            message(e.message ?: "Schreiben fehlgeschlagen")
+        }
+    }
+
+    fun testConnection(path: String, user: String, password: String?) = launchJob("Verbindung wird getestet …") {
+        try {
+            publisher.test(path, user, password)
+            message("Verbindung in Ordnung: Anmeldung und Schreibrecht")
+        } catch (e: SmbWriteException) {
+            message(e.message ?: "Verbindung fehlgeschlagen")
+        }
     }
 }

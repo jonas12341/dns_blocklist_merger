@@ -6,6 +6,7 @@ import de.jonas.dnsblocklistmerger.AppController
 import de.jonas.dnsblocklistmerger.data.Settings
 import de.jonas.dnsblocklistmerger.data.SettingsRepository
 import de.jonas.dnsblocklistmerger.data.ThemeMode
+import de.jonas.dnsblocklistmerger.smb.PasswordStore
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -13,9 +14,12 @@ import kotlinx.coroutines.launch
 
 class SettingsViewModel(
     private val repo: SettingsRepository,
+    private val passwords: PasswordStore,
     private val controller: AppController,
     private val onDailyTimeChanged: () -> Unit = {},
 ) : ViewModel() {
+    val passwordSet: StateFlow<Boolean> = passwords.isSet.stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
     /** Null until DataStore has answered, so the form never starts from defaults by mistake. */
     val settings: StateFlow<Settings?> = repo.settings.stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
@@ -51,10 +55,13 @@ class SettingsViewModel(
 
     fun refreshNow() = controller.refresh()
 
-    fun saveSmbTarget(path: String, user: String) {
+    fun saveSmbTarget(path: String, user: String, password: String?) {
         viewModelScope.launch {
             repo.setSmbTarget(path, user)
+            if (password != null) passwords.save(password)
             controller.message("FRITZ!Box-Freigabe gespeichert")
         }
     }
+
+    fun testSmb(path: String, user: String, password: String?) = controller.testConnection(path, user, password)
 }

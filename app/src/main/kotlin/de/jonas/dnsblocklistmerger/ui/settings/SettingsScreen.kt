@@ -40,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import de.jonas.dnsblocklistmerger.data.Settings
 import de.jonas.dnsblocklistmerger.data.ThemeMode
@@ -55,7 +56,9 @@ data class SettingsActions(
     val onOmitSubdomains: (Boolean) -> Unit = {},
     val onDailyRunMinutes: (Int) -> Unit = {},
     val onRefreshNow: () -> Unit = {},
-    val onSaveSmb: (path: String, user: String) -> Unit = { _, _ -> },
+    /** Password null keeps the stored one. */
+    val onSaveSmb: (path: String, user: String, password: String?) -> Unit = { _, _, _ -> },
+    val onTestSmb: (path: String, user: String, password: String?) -> Unit = { _, _, _ -> },
 )
 
 /** Parses a whole number in [range], or null for anything else. */
@@ -67,7 +70,7 @@ fun SettingsScreen(
     busy: String?,
     actions: SettingsActions,
     snackbar: SnackbarHostState = remember { SnackbarHostState() },
-    smbExtras: @Composable () -> Unit = {},
+    passwordSet: Boolean = false,
 ) {
     SubScreen("Einstellungen", actions.onBack, snackbar) { padding ->
         if (settings == null) {
@@ -81,7 +84,7 @@ fun SettingsScreen(
             ThemeCard(settings.theme, actions.onTheme)
             OutputCard(settings, actions)
             UpdateCard(settings.dailyRunMinutes, busy, actions)
-            SmbCard(settings, actions.onSaveSmb, smbExtras)
+            SmbCard(settings, passwordSet, busy, actions)
         }
     }
 }
@@ -202,11 +205,13 @@ private fun UpdateCard(minutes: Int, busy: String?, actions: SettingsActions) = 
 }
 
 @Composable
-private fun SmbCard(settings: Settings, onSave: (String, String) -> Unit, extras: @Composable () -> Unit) =
+private fun SmbCard(settings: Settings, passwordSet: Boolean, busy: String?, actions: SettingsActions) =
     SectionCard("FRITZ!Box-Freigabe") {
         var path by rememberSaveable(settings.smbPath) { mutableStateOf(settings.smbPath) }
         var user by rememberSaveable(settings.smbUser) { mutableStateOf(settings.smbUser) }
-        val pathOk = path.isBlank() || path.trim().startsWith("smb://")
+        // Never prefilled: the stored password is not shown again.
+        var password by remember { mutableStateOf("") }
+        val pathOk = path.isBlank() || path.trim().startsWith("smb://", ignoreCase = true)
         OutlinedTextField(
             value = path,
             onValueChange = { path = it },
@@ -226,9 +231,29 @@ private fun SmbCard(settings: Settings, onSave: (String, String) -> Unit, extras
             keyboardOptions = KeyboardOptions(autoCorrectEnabled = false),
             modifier = Modifier.fillMaxWidth(),
         )
-        Button(
-            onClick = { onSave(path, user) },
-            enabled = pathOk && (path.trim() != settings.smbPath || user.trim() != settings.smbUser),
-        ) { Text("Speichern") }
-        extras()
+        OutlinedTextField(
+            value = password,
+            onValueChange = { password = it },
+            label = { Text("Passwort") },
+            placeholder = { if (passwordSet) Text("gespeichert, leer lassen zum Behalten") },
+            singleLine = true,
+            visualTransformation = PasswordVisualTransformation(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, autoCorrectEnabled = false),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Hint("Das Passwort wird verschlüsselt im Android-Keystore-Bereich gespeichert.")
+        val newPassword = password.ifEmpty { null }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(
+                onClick = {
+                    actions.onSaveSmb(path, user, newPassword)
+                    password = ""
+                },
+                enabled = pathOk && (path.trim() != settings.smbPath || user.trim() != settings.smbUser || newPassword != null),
+            ) { Text("Speichern") }
+            OutlinedButton(
+                onClick = { actions.onTestSmb(path, user, newPassword) },
+                enabled = busy == null && pathOk && path.isNotBlank() && user.isNotBlank() && (passwordSet || newPassword != null),
+            ) { Text("Verbindung testen") }
+        }
     }

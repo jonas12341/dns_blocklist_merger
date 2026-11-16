@@ -60,6 +60,7 @@ dependencies {
     implementation(libs.paging.runtime)
     implementation(libs.coroutines.core)
     implementation(libs.okhttp)
+    implementation(libs.smbj)
 
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)

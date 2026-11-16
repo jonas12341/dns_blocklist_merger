@@ -47,6 +47,7 @@ fun AppNavigation(container: AppContainer) {
                     onOpenSettings = { nav.navigate(Routes.SETTINGS) },
                     onOpenDomains = { nav.navigate(Routes.DOMAINS) },
                     onAddList = vm::addList,
+                    onWriteToFritzBox = container.controller::writeToFritzBox,
                     onClearAddError = vm::clearAddError,
                     onRemoveList = vm::removeList,
                     onChangePriority = vm::changePriority,
@@ -78,12 +79,14 @@ fun AppNavigation(container: AppContainer) {
             )
         }
         composable(Routes.SETTINGS) {
-            val vm = viewModel { SettingsViewModel(container.settings, container.controller) }
+            val vm = viewModel { SettingsViewModel(container.settings, container.passwords, container.controller) }
             val settings by vm.settings.collectAsStateWithLifecycle()
             val busy by vm.busy.collectAsStateWithLifecycle()
+            val passwordSet by vm.passwordSet.collectAsStateWithLifecycle()
             SettingsScreen(
                 settings = settings,
                 busy = busy,
+                passwordSet = passwordSet,
                 snackbar = snackbar,
                 actions = SettingsActions(
                     onBack = { nav.popBackStack() },
@@ -93,6 +96,7 @@ fun AppNavigation(container: AppContainer) {
                     onDailyRunMinutes = vm::setDailyRunMinutes,
                     onRefreshNow = vm::refreshNow,
                     onSaveSmb = vm::saveSmbTarget,
+                    onTestSmb = vm::testSmb,
                 ),
             )
         }
