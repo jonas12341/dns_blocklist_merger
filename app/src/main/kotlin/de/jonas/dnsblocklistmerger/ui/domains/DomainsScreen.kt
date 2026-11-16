@@ -1,5 +1,6 @@
 package de.jonas.dnsblocklistmerger.ui.domains
 
+import de.jonas.dnsblocklistmerger.core.InputText
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -35,7 +36,6 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.itemKey
@@ -128,7 +128,7 @@ private fun ExceptionsCard(exceptions: List<ExceptionEntity>, actions: DomainsAc
             )
             for (e in exceptions) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(e.domain, fontFamily = FontFamily.Monospace, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(e.domain, fontFamily = FontFamily.Monospace, modifier = Modifier.weight(1f))
                     TextButton(onClick = { actions.onAllow(e.domain) }) { Text("Entfernen") }
                 }
             }
@@ -136,7 +136,7 @@ private fun ExceptionsCard(exceptions: List<ExceptionEntity>, actions: DomainsAc
                 OutlinedTextField(
                     value = input,
                     onValueChange = {
-                        input = it
+                        input = InputText.withoutWhitespace(it)
                         invalid = false
                     },
                     placeholder = { Text("z. B. login.example.com") },
@@ -162,7 +162,7 @@ private fun ExceptionsCard(exceptions: List<ExceptionEntity>, actions: DomainsAc
 private fun DomainRow(item: OutputDomainEntity, excluded: Boolean, actions: DomainsActions) {
     Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
-            Text(item.domain, fontFamily = FontFamily.Monospace, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(item.domain, fontFamily = FontFamily.Monospace)
             Text(
                 "Rang ${item.rank} · ${item.frequency}× · beste P${item.bestPriority}",
                 style = MaterialTheme.typography.bodySmall,

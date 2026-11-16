@@ -1,5 +1,6 @@
 package de.jonas.dnsblocklistmerger.data
 
+import de.jonas.dnsblocklistmerger.core.InputText
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
@@ -88,7 +89,7 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
     }
 
     suspend fun setSmbTarget(path: String, user: String) = store.edit {
-        it[Keys.smbPath] = path.trim()
+        it[Keys.smbPath] = InputText.withoutSpacesAfterDots(path)
         it[Keys.smbUser] = user.trim()
     }
 }

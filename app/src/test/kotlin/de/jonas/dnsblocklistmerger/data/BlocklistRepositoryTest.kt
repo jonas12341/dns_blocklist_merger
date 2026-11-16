@@ -121,6 +121,35 @@ class BlocklistRepositoryTest {
     }
 
     @Test
+    fun spacesTypedAfterDotsAreRemoved() = runTest {
+        val id = repo.addList(" https://raw. githubusercontent. com/a/b/main/list. txt ")
+        assertEquals("https://raw.githubusercontent.com/a/b/main/list.txt", repo.getList(id)!!.url)
+        assertTrue(repo.addException("login. example. com"))
+        assertEquals(listOf("login.example.com"), repo.observeExceptions().first().map { it.domain })
+    }
+
+    @Test
+    fun updateUrlResetsTheListAndRejectsDuplicates() = runTest {
+        val id = repo.addList("https://one.example/list")
+        repo.addList("https://two.example/list")
+        repo.recordSuccess(id, BlocklistParser.parse("||a.example^"), etag = "\"v1\"", lastModified = "Mon")
+
+        repo.updateUrl(id, "https://three. example/other.txt")
+        val list = repo.getList(id)!!
+        assertEquals("https://three.example/other.txt", list.url)
+        assertEquals("three.example other.txt", list.name)
+        assertEquals(ListStatus.PENDING, list.status)
+        assertNull(list.etag)
+        assertNull(list.lastSuccessAt)
+        assertEquals(0, list.domainCount)
+        assertTrue(repo.recompute(Settings()).entries.isEmpty())
+
+        assertTrue(runCatching { repo.updateUrl(id, "https://two.example/list") }.isFailure)
+        assertTrue(runCatching { repo.updateUrl(id, "not a url") }.isFailure)
+        assertEquals("https://three.example/other.txt", repo.getList(id)!!.url)
+    }
+
+    @Test
     fun priorityIsClamped() = runTest {
         val id = repo.addList("https://one.example/list")
         repo.setPriority(id, 0)

@@ -7,6 +7,7 @@ import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.cachedIn
 import de.jonas.dnsblocklistmerger.AppController
+import de.jonas.dnsblocklistmerger.core.InputText
 import de.jonas.dnsblocklistmerger.data.BlocklistRepository
 import de.jonas.dnsblocklistmerger.data.ExceptionEntity
 import de.jonas.dnsblocklistmerger.data.OutputDomainEntity
@@ -46,7 +47,7 @@ class DomainsViewModel(
 
     val domains: Flow<PagingData<OutputDomainEntity>> = _query
         .debounce(250)
-        .map { it.trim().lowercase() }
+        .map { InputText.withoutWhitespace(it).lowercase() }
         .distinctUntilChanged()
         .flatMapLatest { q -> Pager(PagingConfig(pageSize = 60, enablePlaceholders = false)) { lists.pageDomains(q) }.flow }
         .cachedIn(viewModelScope)

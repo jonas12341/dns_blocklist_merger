@@ -15,6 +15,7 @@ import de.jonas.dnsblocklistmerger.ui.domains.DomainsScreen
 import de.jonas.dnsblocklistmerger.ui.theme.AppTheme
 import kotlinx.coroutines.flow.flowOf
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -35,6 +36,27 @@ class DomainsScreenTest {
         OutputDomainEntity("rare.example.org", 1, 3, 11, DomainStatus.CUT_BY_LIMIT),
         OutputDomainEntity("login.example.com", 1, 2, 21, DomainStatus.EXCEPTION),
     )
+
+    @Test
+    fun longDomainsAreShownInFull() {
+        val long = "very-long-subdomain-name.tracking-and-telemetry.some-advertising-network.example.com"
+        compose.setContent {
+            AppTheme(dynamic = false) {
+                DomainsScreen(
+                    query = "",
+                    totalDomains = 1,
+                    exceptions = listOf(ExceptionEntity("another-$long", 0)),
+                    exceptionDomains = setOf("another-$long"),
+                    domains = flowOf(PagingData.from(listOf(OutputDomainEntity(long, 1, 1, 11, DomainStatus.REQUIRED)))).collectAsLazyPagingItems(),
+                    busy = null,
+                    actions = DomainsActions(),
+                )
+            }
+        }
+        assertFalse(compose.onNodeWithText(long).isTextCut())
+        assertFalse(compose.onNodeWithText("another-$long").isTextCut())
+        compose.saveScreenshot("domains-long")
+    }
 
     @Test
     fun showsDomainsWithStatusAndExcludeReportsDomain() {

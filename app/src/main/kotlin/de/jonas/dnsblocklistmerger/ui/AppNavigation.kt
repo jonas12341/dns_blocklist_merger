@@ -61,6 +61,7 @@ fun AppNavigation(container: AppContainer) {
                     onSaveAs = { saveAs.launch("blocklist.txt") },
                     onClearAddError = vm::clearAddError,
                     onRemoveList = vm::removeList,
+                    onEditUrl = vm::editUrl,
                     onChangePriority = vm::changePriority,
                 ),
             )
