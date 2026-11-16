@@ -1,6 +1,10 @@
 package de.jonas.dnsblocklistmerger.ui
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -37,6 +41,12 @@ fun AppNavigation(container: AppContainer) {
     }
     NavHost(navController = nav, startDestination = Routes.HOME) {
         composable(Routes.HOME) {
+            val resolver = LocalContext.current.contentResolver
+            val saveAs = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) { uri ->
+                if (uri != null) {
+                    container.controller.saveAs(uri.toString()) { resolver.openOutputStream(Uri.parse(it), "wt") }
+                }
+            }
             val vm = viewModel { HomeViewModel(container.blocklists, container.settings, container.controller) }
             val state by vm.state.collectAsStateWithLifecycle()
             HomeScreen(
@@ -48,6 +58,7 @@ fun AppNavigation(container: AppContainer) {
                     onOpenDomains = { nav.navigate(Routes.DOMAINS) },
                     onAddList = vm::addList,
                     onWriteToFritzBox = container.controller::writeToFritzBox,
+                    onSaveAs = { saveAs.launch("blocklist.txt") },
                     onClearAddError = vm::clearAddError,
                     onRemoveList = vm::removeList,
                     onChangePriority = vm::changePriority,

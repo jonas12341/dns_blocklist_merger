@@ -87,4 +87,12 @@ class AppController(
             message(e.message ?: "Verbindung fehlgeschlagen")
         }
     }
+
+    /** Writes the same content as the FRITZ!Box path to a file the user picked (Storage Access Framework). */
+    fun saveAs(target: String, open: (String) -> java.io.OutputStream?) = launchJob("Datei wird gespeichert …") {
+        val content = lists.renderOutput().toByteArray(Charsets.US_ASCII)
+        val out = open(target) ?: throw java.io.IOException("Datei lässt sich nicht öffnen")
+        out.use { it.write(content) }
+        message("Gespeichert (${content.size / 1024} KB)")
+    }
 }
