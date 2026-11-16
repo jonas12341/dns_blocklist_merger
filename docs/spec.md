@@ -26,7 +26,7 @@ Zielgerät: FRITZ!Box 7530 AX mit FRITZ!OS 8.50.
 - Domains lassen sich manuell als dauerhafte Ausnahme anlegen. Ausnahmen werden dauerhaft gespeichert und gelten bei jeder weiteren Erzeugung.
 
 ### A4 Settings
-- Maximale Größe der Ausgabedatei in KB. Standard und Obergrenze: 4096 KB (4 MB). Grund: Der DNS-Filter der FRITZ!Box hat max. 8 MB internen Speicher frei, zum Austausch darf die Datei höchstens 4 MB groß sein.
+- Maximale Größe der Ausgabedatei in KB. Standard: 4096 KB (4 MB). Grund: Der DNS-Filter der FRITZ!Box hat max. 8 MB internen Speicher frei, zum Austausch darf die Datei höchstens 4 MB groß sein. Größere Werte sind erlaubt (Jonas 2026-11-16, #22), die App warnt dann nur; technische Obergrenze 1.048.576 KB. Wert per Feld eintippen, der Schieberegler reicht bis 4096 KB oder bis zum größten eingetippten Wert.
 - Rang-Formel (siehe A5) mit einstellbaren Parametern `a` und `b`.
 - Schalter „Subdomains weglassen“ (siehe A6). Standard: an.
 - Zugang zum FRITZ!Box-Speicher: Pfad zum freigegebenen Verzeichnis, Benutzer und Passwort (siehe A7).
