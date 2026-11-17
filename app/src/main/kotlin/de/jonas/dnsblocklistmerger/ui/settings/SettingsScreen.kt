@@ -1,6 +1,7 @@
 package de.jonas.dnsblocklistmerger.ui.settings
 
 import de.jonas.dnsblocklistmerger.core.InputText
+import de.jonas.dnsblocklistmerger.smb.SmbTarget
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -229,14 +230,20 @@ private fun SmbCard(settings: Settings, passwordSet: Boolean, busy: String?, act
         var user by rememberSaveable(settings.smbUser) { mutableStateOf(settings.smbUser) }
         // Never prefilled: the stored password is not shown again.
         var password by remember { mutableStateOf("") }
-        val pathOk = path.isBlank() || path.trim().startsWith("smb://", ignoreCase = true)
+        val pathOk = path.isBlank() || SmbTarget.hasKnownPrefix(path)
         OutlinedTextField(
             value = path,
             onValueChange = { path = it },
             label = { Text("Pfad") },
             placeholder = { Text("smb://fritz.box/FRITZ.NAS/dnsfilter/blocklist.txt") },
             isError = !pathOk,
-            supportingText = if (!pathOk) ({ Text("Muss mit smb:// beginnen") }) else null,
+            supportingText = {
+                Text(
+                    if (pathOk) "smb://Server/Freigabe/Ordner/Datei.txt; endet der Pfad auf einen Ordner, " +
+                        "schreibt die App ${SmbTarget.DEFAULT_FILE_NAME} hinein."
+                    else "Muss mit smb:// oder // beginnen",
+                )
+            },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, autoCorrectEnabled = false),
             modifier = Modifier.fillMaxWidth(),

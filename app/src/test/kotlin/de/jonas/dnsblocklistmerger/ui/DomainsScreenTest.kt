@@ -53,8 +53,9 @@ class DomainsScreenTest {
                 )
             }
         }
-        assertFalse(compose.onNodeWithText(long).isTextCut())
-        assertFalse(compose.onNodeWithText("another-$long").isTextCut())
+        // #28: one line, never wrapped; the full name is there and scrolls sideways.
+        assertEquals(1, compose.onNodeWithText(long, useUnmergedTree = true).lineCount())
+        assertEquals(1, compose.onNodeWithText("another-$long", useUnmergedTree = true).lineCount())
         compose.saveScreenshot("domains-long")
     }
 

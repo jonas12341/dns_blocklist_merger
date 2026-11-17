@@ -1,5 +1,8 @@
 package de.jonas.dnsblocklistmerger.ui
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -77,5 +80,29 @@ class SettingsScreenTest {
         compose.onNode(hasSetTextAction() and hasText("4")).performTextReplacement("512")
         compose.onNodeWithText("Übernehmen").assertIsEnabled().performClick()
         assertEquals(Triple(512, 10, 1), saved)
+    }
+
+    @Test
+    fun applyingSizeAndWeightsKeepsTheNewValues() {
+        // #21: the repository stores size and weights in two steps, like SettingsViewModel.saveOutput.
+        var settings by mutableStateOf(Settings())
+        compose.setContent {
+            AppTheme(dynamic = false) {
+                SettingsScreen(settings, null, SettingsActions(onSaveOutput = { kb, a, b ->
+                    settings = settings.copy(maxKb = kb)
+                    settings = settings.copy(a = a, b = b)
+                }))
+            }
+        }
+        compose.onNode(hasSetTextAction() and hasText("4096")).performTextReplacement("2048")
+        compose.onNode(hasSetTextAction() and hasText("10")).performTextReplacement("7")
+        compose.onNode(hasSetTextAction() and hasText("1")).performTextReplacement("3")
+        compose.onNodeWithText("Übernehmen").assertIsEnabled().performClick()
+        compose.waitForIdle()
+        assertEquals(Triple(2048, 7, 3), Triple(settings.maxKb, settings.a, settings.b))
+        compose.onNode(hasSetTextAction() and hasText("2048")).assertExists()
+        compose.onNode(hasSetTextAction() and hasText("7")).assertExists()
+        compose.onNode(hasSetTextAction() and hasText("3")).assertExists()
+        compose.onNodeWithText("Übernehmen").assertIsNotEnabled()
     }
 }
