@@ -154,6 +154,10 @@ class SmbWriter(private val files: SmbFiles = SmbjFiles()) {
  */
 class SmbjFiles(private val configs: List<SmbConfig> = negotiationFallbacks()) : SmbFiles {
 
+    /** A path that ends on an existing folder means "write blocklist.txt into it" (#27). */
+    private fun resolved(share: DiskShare, target: SmbTarget) =
+        if (share.folderExists(target.file)) target.intoFolder() else target
+
     private fun <T> withShare(target: SmbTarget, credentials: SmbCredentials, block: (DiskShare) -> T): T =
         SmbWriter.withFallback(configs) { config -> withShare(config, target, credentials, block) }
 
@@ -168,32 +172,36 @@ class SmbjFiles(private val configs: List<SmbConfig> = negotiationFallbacks()) :
         }
 
     override fun replaceFile(target: SmbTarget, credentials: SmbCredentials, tempName: String, content: ByteArray) =
-        withShare(target, credentials) { share ->
-            if (target.directory.isNotEmpty() && !share.folderExists(target.directory)) {
-                throw SmbWriteException("Verzeichnis nicht gefunden: ${target.directory.replace('\\', '/')}")
-            }
-            val temp = target.sibling(tempName)
-            share.openFile(
-                temp,
-                setOf(AccessMask.GENERIC_WRITE, AccessMask.DELETE),
-                null,
-                SMB2ShareAccess.ALL,
-                SMB2CreateDisposition.FILE_OVERWRITE_IF,
-                null,
-            ).use { file ->
-                file.write(ArrayByteChunkProvider(content, 0))
-                file.flush()
-                // Only the finished file gets the target name, so the FRITZ!Box never reads half a file.
-                file.rename(target.file, true)
-            }
+        withShare(target, credentials) { share -> replace(share, resolved(share, target), content) }
+
+    private fun replace(share: DiskShare, target: SmbTarget, content: ByteArray) {
+        val tempName = "${target.fileName}.tmp"
+        if (target.directory.isNotEmpty() && !share.folderExists(target.directory)) {
+            throw SmbWriteException("Verzeichnis nicht gefunden: ${target.directory.replace('\\', '/')}")
         }
+        val temp = target.sibling(tempName)
+        share.openFile(
+            temp,
+            setOf(AccessMask.GENERIC_WRITE, AccessMask.DELETE),
+            null,
+            SMB2ShareAccess.ALL,
+            SMB2CreateDisposition.FILE_OVERWRITE_IF,
+            null,
+        ).use { file ->
+            file.write(ArrayByteChunkProvider(content, 0))
+            file.flush()
+            // Only the finished file gets the target name, so the FRITZ!Box never reads half a file.
+            file.rename(target.file, true)
+        }
+    }
 
     override fun probe(target: SmbTarget, credentials: SmbCredentials, probeName: String) =
         withShare(target, credentials) { share ->
-            if (target.directory.isNotEmpty() && !share.folderExists(target.directory)) {
-                throw SmbWriteException("Verzeichnis nicht gefunden: ${target.directory.replace('\\', '/')}")
+            val dest = resolved(share, target)
+            if (dest.directory.isNotEmpty() && !share.folderExists(dest.directory)) {
+                throw SmbWriteException("Verzeichnis nicht gefunden: ${dest.directory.replace('\\', '/')}")
             }
-            val probe = target.sibling(probeName)
+            val probe = dest.sibling(probeName)
             share.openFile(
                 probe,
                 setOf(AccessMask.GENERIC_WRITE),

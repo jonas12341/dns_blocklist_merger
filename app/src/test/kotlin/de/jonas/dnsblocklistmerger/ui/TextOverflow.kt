@@ -11,3 +11,9 @@ fun SemanticsNodeInteraction.isTextCut(): Boolean {
     fetchSemanticsNode().config.getOrNull(SemanticsActions.GetTextLayoutResult)?.action?.invoke(results)
     return results.single().hasVisualOverflow
 }
+
+fun SemanticsNodeInteraction.lineCount(): Int {
+    val results = mutableListOf<TextLayoutResult>()
+    fetchSemanticsNode().config.getOrNull(SemanticsActions.GetTextLayoutResult)?.action?.invoke(results)
+    return results.single().lineCount
+}

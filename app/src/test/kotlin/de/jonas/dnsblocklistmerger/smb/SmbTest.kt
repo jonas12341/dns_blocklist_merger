@@ -47,6 +47,24 @@ class SmbTest {
     }
 
     @Test
+    fun acceptsWindowsAndFileManagerPrefixes() {
+        // #27: the tester typed //192.168.178.1/FunknetzFM.NAS/VERBATIM/FRITZ
+        val t = SmbTarget.parse("//192.168.178.1/FunknetzFM.NAS/VERBATIM/FRITZ")
+        assertEquals(SmbTarget("192.168.178.1", "FunknetzFM.NAS", "VERBATIM", "FRITZ"), t)
+        assertEquals(t, SmbTarget.parse("\\\\192.168.178.1\\FunknetzFM.NAS\\VERBATIM\\FRITZ"))
+        assertTrue(SmbTarget.hasKnownPrefix("//h/s/f"))
+        assertTrue(!SmbTarget.hasKnownPrefix("h/s/f"))
+    }
+
+    @Test
+    fun aPathEndingOnAFolderGetsTheDefaultFileName() {
+        val t = SmbTarget.parse("smb://h/FRITZ.NAS/VERBATIM/FRITZ").intoFolder()
+        assertEquals("VERBATIM\\FRITZ", t.directory)
+        assertEquals("VERBATIM\\FRITZ\\blocklist.txt", t.file)
+        assertEquals("blocklist.txt", SmbTarget.parse("smb://h/s/FRITZ").intoFolder().file.substringAfter("FRITZ\\"))
+    }
+
+    @Test
     fun rejectsUnusablePaths() {
         for (bad in listOf("", "fritz.box/FRITZ.NAS/x.txt", "smb://fritz.box/FRITZ.NAS", "smb://fritz.box", "smb://h/s/../x.txt")) {
             assertTrue(bad, runCatching { SmbTarget.parse(bad) }.isFailure)
