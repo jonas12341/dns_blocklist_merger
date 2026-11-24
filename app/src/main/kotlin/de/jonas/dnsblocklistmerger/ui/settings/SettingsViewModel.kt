@@ -32,8 +32,7 @@ class SettingsViewModel(
     /** Saves size and weights together and recomputes the output once. */
     fun saveOutput(maxKb: Int, a: Int, b: Int) {
         viewModelScope.launch {
-            repo.setMaxKb(maxKb)
-            repo.setWeights(a, b)
+            repo.setOutput(maxKb, a, b)
             controller.recompute()
             controller.message("Gespeichert, Ausgabe wird neu berechnet")
         }
