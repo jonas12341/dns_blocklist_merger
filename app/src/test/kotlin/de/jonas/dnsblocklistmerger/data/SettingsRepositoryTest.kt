@@ -5,6 +5,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -42,8 +45,7 @@ class SettingsRepositoryTest {
         val file = File(tmp.root, "b.preferences_pb")
         withRepo(file) { repo ->
             repo.setTheme(ThemeMode.DARK)
-            repo.setMaxKb(512)
-            repo.setWeights(5, 3)
+            repo.setOutput(512, 5, 3)
             repo.setOmitSubdomains(false)
             repo.setDailyRunMinutes(4 * 60 + 30)
             repo.setSmbTarget(" smb://fritz.box/FRITZ.NAS/dnsfilter/blocklist.txt ", "jonas")
@@ -55,14 +57,31 @@ class SettingsRepositoryTest {
     }
 
     @Test
+    fun outputValuesAreStoredInOneStep() {
+        // #21: size and weights in one DataStore edit, so no observer sees the new size with the old weights.
+        val seen = withRepo(File(tmp.root, "d.preferences_pb")) { repo ->
+            val edits = mutableListOf<Settings>()
+            coroutineScope {
+                val job = launch(Dispatchers.Unconfined) { repo.settings.collect { edits += it } }
+                repo.setOutput(2048, 7, 3)
+                delay(200)
+                job.cancel()
+            }
+            edits.map { Triple(it.maxKb, it.a, it.b) }
+        }
+        assertEquals(listOf(Triple(4096, 10, 1), Triple(2048, 7, 3)), seen)
+    }
+
+    @Test
     fun invalidValuesAreRejected() {
         withRepo(File(tmp.root, "c.preferences_pb")) { repo ->
-            assertTrue(runCatching { repo.setMaxKb(4) }.isFailure)
-            assertTrue(runCatching { repo.setMaxKb(Settings.MAX_KB + 1) }.isFailure)
-            repo.setMaxKb(20_000)
+            assertTrue(runCatching { repo.setOutput(4, 10, 1) }.isFailure)
+            assertTrue(runCatching { repo.setOutput(Settings.MAX_KB + 1, 10, 1) }.isFailure)
+            repo.setOutput(20_000, 10, 1)
             assertEquals(20_000, repo.current().maxKb)
-            repo.setMaxKb(4096)
-            assertTrue(runCatching { repo.setWeights(-1, 1) }.isFailure)
+            repo.setOutput(4096, 10, 1)
+            assertTrue(runCatching { repo.setOutput(4096, -1, 1) }.isFailure)
+            assertTrue(runCatching { repo.setOutput(4096, 10, 1001) }.isFailure)
             assertTrue(runCatching { repo.setDailyRunMinutes(24 * 60) }.isFailure)
             assertEquals(4096, repo.current().maxKb)
         }

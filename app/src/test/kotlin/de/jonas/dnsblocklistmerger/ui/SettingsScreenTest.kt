@@ -84,7 +84,7 @@ class SettingsScreenTest {
 
     @Test
     fun applyingSizeAndWeightsKeepsTheNewValues() {
-        // #21: the repository stores size and weights in two steps, like SettingsViewModel.saveOutput.
+        // #21: the form keeps the typed values even when the saved settings arrive in two steps.
         var settings by mutableStateOf(Settings())
         compose.setContent {
             AppTheme(dynamic = false) {

@@ -158,7 +158,8 @@ fun HomeScreen(state: HomeUiState, actions: HomeActions, snackbar: SnackbarHostS
 @Composable
 private fun OutputCard(state: HomeUiState, actions: HomeActions) {
     val out = state.output
-    val limit = state.settings.maxBytes
+    // The limit the shown output was computed with; a newly saved size counts once the recompute is done.
+    val limit = out?.takeIf { it.computedAt != null }?.maxBytes ?: state.settings.maxBytes
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -173,7 +174,7 @@ private fun OutputCard(state: HomeUiState, actions: HomeActions) {
             val bytes = out?.bytes ?: 0
             UsageMeter(required = minOf(out?.requiredBytes ?: 0, bytes), total = bytes, limit = limit)
             Text(
-                "${formatKb(bytes)} von ${formatNumber(state.settings.maxKb)} KB · dunkel: Pflicht" +
+                "${formatKb(bytes)} von ${formatNumber(limit / 1024)} KB · dunkel: Pflicht" +
                     (out?.topPriority?.let { " (P$it)" } ?: "") + ", hell: nach Rang aufgefüllt",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,

@@ -72,16 +72,14 @@ class SettingsRepository(private val store: DataStore<Preferences>) {
 
     suspend fun setTheme(value: ThemeMode) = store.edit { it[Keys.theme] = value.name }
 
-    suspend fun setMaxKb(value: Int) {
-        require(value in Settings.MIN_KB..Settings.MAX_KB) { "max KB out of range: $value" }
-        store.edit { it[Keys.maxKb] = value }
-    }
-
-    suspend fun setWeights(a: Int, b: Int) {
+    /** Size and weights in one edit, so observers never see the new size with the old weights. */
+    suspend fun setOutput(maxKb: Int, a: Int, b: Int) {
+        require(maxKb in Settings.MIN_KB..Settings.MAX_KB) { "max KB out of range: $maxKb" }
         require(a in Settings.MIN_WEIGHT..Settings.MAX_WEIGHT && b in Settings.MIN_WEIGHT..Settings.MAX_WEIGHT) {
             "weights out of range: a=$a b=$b"
         }
         store.edit {
+            it[Keys.maxKb] = maxKb
             it[Keys.a] = a
             it[Keys.b] = b
         }

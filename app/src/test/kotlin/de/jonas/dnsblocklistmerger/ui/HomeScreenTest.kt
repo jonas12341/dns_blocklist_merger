@@ -12,6 +12,7 @@ import androidx.compose.ui.test.assertCountEquals
 import de.jonas.dnsblocklistmerger.data.BlocklistEntity
 import de.jonas.dnsblocklistmerger.data.ListStatus
 import de.jonas.dnsblocklistmerger.data.OutputStateEntity
+import de.jonas.dnsblocklistmerger.data.Settings
 import de.jonas.dnsblocklistmerger.ui.home.HomeActions
 import de.jonas.dnsblocklistmerger.ui.home.HomeScreen
 import de.jonas.dnsblocklistmerger.ui.home.HomeUiState
@@ -61,6 +62,15 @@ class HomeScreenTest {
         compose.onNodeWithText("P1 gekürzt").assertIsDisplayed()
         compose.onNodeWithText("P1 allein", substring = true).assertIsDisplayed()
         compose.onAllNodesWithText("Fehler").assertCountEquals(0)
+    }
+
+    @Test
+    fun outputCardShowsTheLimitTheOutputWasComputedWith() {
+        // #21: right after „Übernehmen“ the settings already hold the new size, the output is recomputed later.
+        val settings = Settings(maxKb = 2048)
+        compose.setContent { AppTheme(dynamic = false) { HomeScreen(HomeUiState(lists, output, settings), HomeActions()) } }
+        compose.onNodeWithText("von 4.096 KB", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("P1 gekürzt").assertDoesNotExist()
     }
 
     @Test
